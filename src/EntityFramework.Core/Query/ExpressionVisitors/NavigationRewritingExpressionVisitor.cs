@@ -448,17 +448,47 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors
 
                     joinClause.InnerKeySelector = innerKeySelector;
 
-                    navigationJoins.Add(
-                        navigationJoin
-                            = new NavigationJoin(
-                                querySourceReferenceExpression.ReferencedQuerySource,
-                                navigation,
-                                joinClause,
-                                innerQuerySourceReferenceExpression));
+                    if (!navigation.ForeignKey.IsRequired)
+                    {
+                        var groupJoinClause
+                            = new GroupJoinClause(
+                                "group",
+                                typeof(IEnumerable<>).MakeGenericType(targetEntityType.ClrType),
+                                joinClause);
+
+                        _queryModel.BodyClauses.Add(groupJoinClause);
+
+                        var groupReferenceExpression = new QuerySourceReferenceExpression(groupJoinClause);
+
+
+                        var defaultIfEmptyQueryModel = new QueryModel(
+                            new MainFromClause("groupItem", joinClause.ItemType, groupReferenceExpression),
+                            new SelectClause(groupReferenceExpression));
+                        defaultIfEmptyQueryModel.ResultOperators.Add(new DefaultIfEmptyResultOperator(groupReferenceExpression));
+
+                        var defaultIfEmptySubquery = new SubQueryExpression(defaultIfEmptyQueryModel);
+                        var defaultIfEmptyFromClause = new AdditionalFromClause(joinClause.ItemName, joinClause.ItemType, defaultIfEmptySubquery);
+                        _queryModel.BodyClauses.Add(defaultIfEmptyFromClause);
+                        
+                        querySourceReferenceExpression = new QuerySourceReferenceExpression(defaultIfEmptyFromClause);
+                    }
+                    else
+                    {
+                        navigationJoins.Add(
+                            navigationJoin
+                                = new NavigationJoin(
+                                    querySourceReferenceExpression.ReferencedQuerySource,
+                                    navigation,
+                                    joinClause,
+                                    innerQuerySourceReferenceExpression));
+                    }
                 }
 
-                querySourceReferenceExpression = navigationJoin.QuerySourceReferenceExpression;
-                navigationJoins = navigationJoin.NavigationJoins;
+                if (navigation.ForeignKey.IsRequired)
+                {
+                    querySourceReferenceExpression = navigationJoin.QuerySourceReferenceExpression;
+                    navigationJoins = navigationJoin.NavigationJoins;
+                }
             }
 
             return querySourceReferenceExpression;
