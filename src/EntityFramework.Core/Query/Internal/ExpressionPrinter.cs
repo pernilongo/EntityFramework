@@ -219,6 +219,7 @@ namespace Microsoft.Data.Entity.Query.Internal
 
         protected override Expression VisitConditional(ConditionalExpression node)
         {
+            _stringBuilder.Append(" (");
             Visit(node.Test);
 
             _stringBuilder.Append(" ? ");
@@ -228,6 +229,7 @@ namespace Microsoft.Data.Entity.Query.Internal
             _stringBuilder.Append(" : ");
 
             Visit(node.IfFalse);
+            _stringBuilder.Append(") ");
 
             return node;
         }

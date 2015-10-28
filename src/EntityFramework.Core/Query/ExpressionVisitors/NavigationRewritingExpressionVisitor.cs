@@ -20,6 +20,8 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors
 {
     public class NavigationRewritingExpressionVisitor : RelinqExpressionVisitor
     {
+        public virtual List<JoinClause> OuterJoins { get; }
+
         private readonly EntityQueryModelVisitor _queryModelVisitor;
         private readonly List<NavigationJoin> _navigationJoins = new List<NavigationJoin>();
 
@@ -80,6 +82,8 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors
 
             _queryModelVisitor = queryModelVisitor;
             _navigationRewritingQueryModelVisitor = new NavigationRewritingQueryModelVisitor(this);
+
+            OuterJoins = new List<JoinClause>();
         }
 
         private NavigationRewritingExpressionVisitor(
@@ -122,6 +126,8 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors
             var navigationRewritingExpressionVisitor = CreateVisitorForSubQuery();
 
             navigationRewritingExpressionVisitor.Rewrite(subQueryExpression.QueryModel);
+
+            OuterJoins.AddRange(navigationRewritingExpressionVisitor.OuterJoins);
 
             return subQueryExpression;
         }
@@ -337,6 +343,8 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors
             {
                 var subQueryVisitor = CreateVisitorForSubQuery();
                 subQueryVisitor.Rewrite(subQueryModel);
+
+                OuterJoins.AddRange(subQueryVisitor.OuterJoins);
             }
 
             var subQuery = new SubQueryExpression(subQueryModel);
@@ -416,9 +424,15 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors
 
                 if (navigationJoin == null)
                 {
+                    var joinClauseItemName = $"{querySourceReferenceExpression.ReferencedQuerySource.ItemName}.{navigation.Name}";
+                    //if (!navigation.ForeignKey.IsRequired)
+                    //{
+                    //    joinClauseItemName += "<optional>";
+                    //}
+
                     var joinClause
                         = new JoinClause(
-                            $"{querySourceReferenceExpression.ReferencedQuerySource.ItemName}.{navigation.Name}",
+                            joinClauseItemName,
                             targetEntityType.ClrType,
                             CreateEntityQueryable(targetEntityType),
                             CreateKeyAccessExpression(
@@ -447,6 +461,11 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors
                     }
 
                     joinClause.InnerKeySelector = innerKeySelector;
+
+                    if (!navigation.ForeignKey.IsRequired)
+                    {
+                        OuterJoins.Add(joinClause);
+                    }
 
                     navigationJoins.Add(
                         navigationJoin

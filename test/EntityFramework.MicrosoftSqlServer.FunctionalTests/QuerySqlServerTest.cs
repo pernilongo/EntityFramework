@@ -682,6 +682,16 @@ FROM [Orders] AS [o]",
                 Sql);
         }
 
+
+        public override void Select_nested_collection_deep()
+        {
+            base.Select_nested_collection_deep();
+
+            Assert.Equal(
+                @"",
+                Sql);
+        }
+
         public override void Sum_with_arg_expression()
         {
             base.Sum_with_arg_expression();
@@ -4061,6 +4071,8 @@ FROM [Customers] AS [c]
 ORDER BY COALESCE([c].[Region], 'ZZ')",
                 Sql);
         }
+
+        protected override void ClearLog() => TestSqlLoggerFactory.Reset();
 
         private static string Sql => TestSqlLoggerFactory.Sql;
     }

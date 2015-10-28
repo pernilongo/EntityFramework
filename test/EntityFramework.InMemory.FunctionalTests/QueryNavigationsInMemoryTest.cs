@@ -11,5 +11,10 @@ namespace Microsoft.Data.Entity.InMemory.FunctionalTests
             : base(fixture)
         {
         }
+
+        public override void Select_Where_Navigation_Null_Deep()
+        {
+            base.Select_Where_Navigation_Null_Deep();
+        }
     }
 }

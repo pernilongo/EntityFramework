@@ -1,6 +1,7 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Entity.FunctionalTests.TestModels.Northwind;
@@ -131,6 +132,16 @@ namespace Microsoft.Data.Entity.FunctionalTests
         [Fact]
         public virtual void Select_Where_Navigation_Null_Deep()
         {
+            var expected = default(List<Employee>);
+            using (var context = CreateContext())
+            {
+                expected = context.Employees.Include(e => e.Manager.Manager).ToList();
+            }
+
+            expected = expected.Where(e => e.Manager == null || e.Manager.Manager == null).ToList();
+
+            ClearLog();
+
             using (var context = CreateContext())
             {
                 var employees
@@ -138,7 +149,31 @@ namespace Microsoft.Data.Entity.FunctionalTests
                         where e.Manager.Manager == null
                         select e).ToList();
 
-                Assert.Equal(5, employees.Count);
+                Assert.Equal(expected.Count, employees.Count);
+            }
+        }
+
+        [Fact]
+        public virtual void Select_Where_Navigation_Not_Null_Deep()
+        {
+            var expected = default(List<Employee>);
+            using (var context = CreateContext())
+            {
+                expected = context.Employees.Include(e => e.Manager.Manager).ToList();
+            }
+
+            expected = expected.Where(e => e.Manager != null && e.Manager.Manager != null).ToList();
+
+            ClearLog();
+
+            using (var context = CreateContext())
+            {
+                var employees
+                    = (from e in context.Set<Employee>()
+                       where e.Manager.Manager != null
+                       select e).ToList();
+
+                Assert.Equal(expected.Count, employees.Count);
             }
         }
 
@@ -533,6 +568,10 @@ namespace Microsoft.Data.Entity.FunctionalTests
         }
 
         protected TFixture Fixture { get; }
+
+        protected virtual void ClearLog()
+        {
+        }
 
         protected NorthwindContext CreateContext() => Fixture.CreateContext();
     }

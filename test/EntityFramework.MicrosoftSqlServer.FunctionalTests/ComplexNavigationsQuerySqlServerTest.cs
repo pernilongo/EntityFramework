@@ -147,8 +147,9 @@ INNER JOIN [Level2] AS [e2] ON [e1].[Id] = [e2].[OneToOne_Optional_PK_InverseId]
             Assert.Equal(
                 @"SELECT [e1].[Id], [e2].[Id]
 FROM [Level1] AS [e1]
-INNER JOIN [Level2] AS [e1.OneToOne_Optional_FK] ON [e1].[Id] = [e1.OneToOne_Optional_FK].[Level1_Optional_Id]
-INNER JOIN [Level2] AS [e2] ON [e1.OneToOne_Optional_FK].[Id] = [e2].[Id]",
+LEFT JOIN [Level2] AS [e1.OneToOne_Optional_FK] ON [e1].[Id] = [e1.OneToOne_Optional_FK].[Level1_Optional_Id]
+INNER JOIN [Level2] AS [e2] ON [e1.OneToOne_Optional_FK].[Id] = [e2].[Id]
+ORDER BY [e1].[Id]",
                 Sql);
         }
 
@@ -160,8 +161,9 @@ INNER JOIN [Level2] AS [e2] ON [e1.OneToOne_Optional_FK].[Id] = [e2].[Id]",
                 @"SELECT [e1].[Id], [e3].[Id]
 FROM [Level1] AS [e1]
 INNER JOIN [Level2] AS [e1.OneToOne_Required_FK] ON [e1].[Id] = [e1.OneToOne_Required_FK].[Level1_Required_Id]
-INNER JOIN [Level3] AS [e1.OneToOne_Required_FK.OneToOne_Optional_FK] ON [e1.OneToOne_Required_FK].[Id] = [e1.OneToOne_Required_FK.OneToOne_Optional_FK].[Level2_Optional_Id]
-INNER JOIN [Level3] AS [e3] ON [e1.OneToOne_Required_FK.OneToOne_Optional_FK].[Id] = [e3].[Id]",
+LEFT JOIN [Level3] AS [e1.OneToOne_Required_FK.OneToOne_Optional_FK] ON [e1.OneToOne_Required_FK].[Id] = [e1.OneToOne_Required_FK.OneToOne_Optional_FK].[Level2_Optional_Id]
+INNER JOIN [Level3] AS [e3] ON [e1.OneToOne_Required_FK.OneToOne_Optional_FK].[Id] = [e3].[Id]
+ORDER BY [e1.OneToOne_Required_FK].[Id]",
                 Sql);
         }
 
@@ -217,8 +219,9 @@ FROM [Level3] AS [e3]
 INNER JOIN [Level1] AS [e1] ON [e3].[Id] = (
     SELECT TOP(1) [subQuery0.OneToOne_Optional_FK].[Id]
     FROM [Level2] AS [subQuery0]
-    INNER JOIN [Level3] AS [subQuery0.OneToOne_Optional_FK] ON [subQuery0].[Id] = [subQuery0.OneToOne_Optional_FK].[Level2_Optional_Id]
+    LEFT JOIN [Level3] AS [subQuery0.OneToOne_Optional_FK] ON [subQuery0].[Id] = [subQuery0.OneToOne_Optional_FK].[Level2_Optional_Id]
     WHERE [subQuery0].[Level1_Required_Id] = [e1].[Id]
+    ORDER BY [subQuery0].[Id]
 )",
                 Sql);
         }
@@ -233,9 +236,10 @@ FROM [Level4] AS [e4]
 INNER JOIN [Level1] AS [e1] ON [e4].[Name] = (
     SELECT TOP(1) [subQuery0.OneToOne_Optional_FK.OneToOne_Required_PK].[Name]
     FROM [Level2] AS [subQuery0]
-    INNER JOIN [Level3] AS [subQuery0.OneToOne_Optional_FK] ON [subQuery0].[Id] = [subQuery0.OneToOne_Optional_FK].[Level2_Optional_Id]
+    LEFT JOIN [Level3] AS [subQuery0.OneToOne_Optional_FK] ON [subQuery0].[Id] = [subQuery0.OneToOne_Optional_FK].[Level2_Optional_Id]
     INNER JOIN [Level4] AS [subQuery0.OneToOne_Optional_FK.OneToOne_Required_PK] ON [subQuery0.OneToOne_Optional_FK].[Id] = [subQuery0.OneToOne_Optional_FK.OneToOne_Required_PK].[Id]
     WHERE [subQuery0].[Level1_Required_Id] = [e1].[Id]
+    ORDER BY [subQuery0].[Id]
 )",
                 Sql);
         }

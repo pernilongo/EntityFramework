@@ -21,6 +21,7 @@ using Microsoft.Extensions.Logging;
 using Remotion.Linq;
 using Remotion.Linq.Clauses;
 using Remotion.Linq.Clauses.Expressions;
+using Remotion.Linq.Parsing;
 
 namespace Microsoft.Data.Entity.Query
 {
@@ -341,6 +342,9 @@ namespace Microsoft.Data.Entity.Query
 
             if (RequiresClientSelectMany)
             {
+                var maybeMonadInjectingVisitor = new MaybeMonadInjectingExpressionVisitor();
+                fromClause.TransformExpressions(maybeMonadInjectingVisitor.Visit);
+
                 CheckClientEval(fromClause);
             }
         }
@@ -407,6 +411,17 @@ namespace Microsoft.Data.Entity.Query
             Check.NotNull(queryModel, nameof(queryModel));
             Check.NotNull(baseVisitAction, nameof(baseVisitAction));
             Check.NotNull(operatorToFlatten, nameof(operatorToFlatten));
+
+            if (QueryCompilationContext.OuterJoins.Contains(joinClause))
+            {
+                outerJoin = true;
+            }
+
+            //if (joinClause.ItemName.Contains("<optional>"))
+            //{
+            //    outerJoin = true;
+            //    joinClause.ItemName = joinClause.ItemName.Replace("<optional>", "");
+            //}
 
             RequiresClientJoin = true;
 
@@ -486,6 +501,9 @@ namespace Microsoft.Data.Entity.Query
 
             if (RequiresClientJoin)
             {
+                var maybeMonadInjectingVisitor = new MaybeMonadInjectingExpressionVisitor();
+                joinClause.TransformExpressions(maybeMonadInjectingVisitor.Visit);
+
                 CheckClientEval(joinClause);
             }
         }
@@ -720,6 +738,9 @@ namespace Microsoft.Data.Entity.Query
 
             if (RequiresClientFilter)
             {
+                var maybeMonadInjectingVisitor = new MaybeMonadInjectingExpressionVisitor();
+                whereClause.TransformExpressions(maybeMonadInjectingVisitor.Visit);
+
                 CheckClientEval(whereClause.Predicate);
 
                 base.VisitWhereClause(whereClause, queryModel, index);
@@ -773,6 +794,9 @@ namespace Microsoft.Data.Entity.Query
 
             if (RequiresClientOrderBy)
             {
+                var maybeMonadInjectingVisitor = new MaybeMonadInjectingExpressionVisitor();
+                orderByClause.TransformExpressions(maybeMonadInjectingVisitor.Visit);
+
                 CheckClientEval(orderByClause);
 
                 base.VisitOrderByClause(orderByClause, queryModel, index);
@@ -785,6 +809,9 @@ namespace Microsoft.Data.Entity.Query
 
             if (RequiresClientResultOperator)
             {
+                var maybeMonadInjectingVisitor = new MaybeMonadInjectingExpressionVisitor();
+                resultOperator.TransformExpressions(maybeMonadInjectingVisitor.Visit);
+
                 CheckClientEval(resultOperator);
             }
         }
@@ -931,5 +958,60 @@ namespace Microsoft.Data.Entity.Query
         }
 
         #endregion
+
+        private class MaybeMonadInjectingExpressionVisitor : RelinqExpressionVisitor
+        {
+            protected override Expression VisitMember(MemberExpression expression)
+            {
+                var newExpression = Visit(expression.Expression);
+
+                if (newExpression.Type.IsNullableType())
+                {
+                    var defaultValue = expression.Type.IsValueType ? Activator.CreateInstance(expression.Type) : null;
+
+                    var result =
+
+                    Expression.Condition(
+                        Expression.Equal(
+                            newExpression,
+                            Expression.Constant(null)),
+                        Expression.Constant(defaultValue, expression.Type),
+                        expression);
+
+                    return result;
+                }
+                else
+                {
+                    return Expression.MakeMemberAccess(newExpression, expression.Member);
+                }
+            }
+
+            protected override Expression VisitMethodCall(MethodCallExpression expression)
+            {
+                var newObject = Visit(expression.Object);
+
+                if (newObject != null && newObject.Type.IsNullableType())
+                {
+                    // todo: special case Property(a, b)
+
+                    var defaultValue = expression.Type.IsValueType ? Activator.CreateInstance(expression.Type) : null;
+
+                    var result = expression.Method.IsStatic
+                        ? (Expression)expression
+                        : Expression.Condition(
+                            Expression.Equal(
+                                expression.Object,
+                                Expression.Constant(null)),
+                            Expression.Constant(defaultValue, expression.Type),
+                            expression);
+
+                    return result;
+                }
+                else
+                {
+                    return Expression.Call(newObject, expression.Method);
+                }
+            }
+        }
     }
 }

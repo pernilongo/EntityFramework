@@ -4519,5 +4519,9 @@ namespace Microsoft.Data.Entity.FunctionalTests
                     assertOrder);
             }
         }
+
+        protected virtual void ClearLog()
+        {
+        }
     }
 }
