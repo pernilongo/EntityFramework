@@ -49,6 +49,8 @@ namespace Microsoft.Data.Entity.Query
             LinqOperatorProvider = linqOperatorProvider;
             ContextType = contextType;
             TrackQueryResults = trackQueryResults;
+
+            OuterJoins = new List<JoinClause>();
         }
 
         public virtual ILogger Logger { get; }
@@ -56,6 +58,8 @@ namespace Microsoft.Data.Entity.Query
 
         public virtual Type ContextType { get; }
         public virtual bool TrackQueryResults { get; }
+
+        public virtual List<JoinClause> OuterJoins { get; }
 
         public virtual QuerySourceMapping QuerySourceMapping { get; } = new QuerySourceMapping();
 

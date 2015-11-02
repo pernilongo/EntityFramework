@@ -57,6 +57,7 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
             public INavigation Navigation { get; }
             public JoinClause JoinClause { get; }
             public QuerySourceReferenceExpression QuerySourceReferenceExpression { get; }
+
             public readonly List<NavigationJoin> NavigationJoins = new List<NavigationJoin>();
 
             public IEnumerable<NavigationJoin> Iterate()
@@ -75,12 +76,15 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
 
         private IAsyncQueryProvider _entityQueryProvider;
 
+        public virtual List<JoinClause> OuterJoins { get; }
+
         public NavigationRewritingExpressionVisitor([NotNull] EntityQueryModelVisitor queryModelVisitor)
         {
             Check.NotNull(queryModelVisitor, nameof(queryModelVisitor));
 
             _queryModelVisitor = queryModelVisitor;
             _navigationRewritingQueryModelVisitor = new NavigationRewritingQueryModelVisitor(this);
+            OuterJoins = new List<JoinClause>();
         }
 
         private NavigationRewritingExpressionVisitor(
@@ -124,6 +128,8 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
 
             navigationRewritingExpressionVisitor.Rewrite(subQueryExpression.QueryModel);
 
+            OuterJoins.AddRange(navigationRewritingExpressionVisitor.OuterJoins);
+
             return subQueryExpression;
         }
 
@@ -138,9 +144,64 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
             return constantExpression;
         }
 
+        private bool IsConstantNull(Expression expression)
+        {
+            var constantExpression = expression as ConstantExpression;
+
+            return constantExpression != null && constantExpression.Value == null;
+        }
+
+        private QuerySourceReferenceExpression ExtractQuerySourceFromMemberExpression(Expression expression)
+        {
+            var memberExpression = expression as MemberExpression;
+            if (memberExpression != null)
+            {
+                return memberExpression.Expression as QuerySourceReferenceExpression;
+            }
+
+            return null;
+        }
+
+        private QuerySourceReferenceExpression ExtractQuerySourceFromNullComparison(Expression expression)
+        {
+            var binaryExpression = expression as BinaryExpression;
+            if (binaryExpression != null && binaryExpression.NodeType == ExpressionType.Equal)
+            {
+                var leftQuerySource = ExtractQuerySourceFromMemberExpression(binaryExpression.Left);
+                if (leftQuerySource != null && IsConstantNull(binaryExpression.Right))
+                {
+                    return leftQuerySource;
+                }
+
+                var rightQuerySource = ExtractQuerySourceFromMemberExpression(binaryExpression.Right);
+                if (rightQuerySource != null && IsConstantNull(binaryExpression.Left))
+                {
+                    return rightQuerySource;
+                }
+            }
+
+            return null;
+        }
+
+        private QuerySourceReferenceExpression _querySourceComparedToNull;
+
+
         protected override Expression VisitBinary(BinaryExpression binaryExpression)
         {
+            // TODO: how to manage the _querySourceComparedToNull state correctly?
+
+            if (binaryExpression.NodeType == ExpressionType.OrElse)
+            {
+                _querySourceComparedToNull = ExtractQuerySourceFromNullComparison(binaryExpression.Right);
+            }
+
             var newLeft = Visit(binaryExpression.Left);
+
+            if (binaryExpression.NodeType == ExpressionType.OrElse)
+            {
+                _querySourceComparedToNull = ExtractQuerySourceFromNullComparison(binaryExpression.Left);
+            }
+
             var newRight = Visit(binaryExpression.Right);
 
             var leftNavigationJoin
@@ -343,6 +404,8 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
             {
                 var subQueryVisitor = CreateVisitorForSubQuery();
                 subQueryVisitor.Rewrite(subQueryModel);
+
+                OuterJoins.AddRange(subQueryVisitor.OuterJoins);
             }
 
             var subQuery = new SubQueryExpression(subQueryModel);
@@ -451,6 +514,11 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors.Internal
                     }
 
                     joinClause.InnerKeySelector = innerKeySelector;
+
+                    if (querySourceReferenceExpression.ReferencedQuerySource == _querySourceComparedToNull?.ReferencedQuerySource)
+                    {
+                        OuterJoins.Add(joinClause);
+                    }
 
                     navigationJoins.Add(
                         navigationJoin

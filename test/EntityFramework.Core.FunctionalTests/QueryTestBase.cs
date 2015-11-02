@@ -3811,6 +3811,32 @@ namespace Microsoft.Data.Entity.FunctionalTests
         }
 
         [Fact]
+        public virtual void OuterJoin_navigation_expansion()
+        {
+            List<Employee> expected;
+
+            using (var context = CreateContext())
+            {
+                expected = (from e in context.Employees.Include(emp => emp.Manager.Manager).ToList()
+                            where e.Manager == null || e.Manager.Manager == null
+                            select e).ToList();
+            }
+
+            ClearLog();
+
+            using (var context = CreateContext())
+            {
+                var query = from e in context.Employees
+                            where e.Manager == null || e.Manager.Manager == null
+                            select e;
+
+                var result = query.ToList();
+
+                TestHelpers.AssertResults(expected, result, assertOrder: false);
+            }
+        }
+
+        [Fact]
         public virtual void GroupJoin_simple()
         {
             AssertQuery<Customer, Order>((cs, os) =>
@@ -4519,6 +4545,10 @@ namespace Microsoft.Data.Entity.FunctionalTests
                     query(context.Set<TItem>()).ToArray(),
                     assertOrder);
             }
+        }
+
+        protected virtual void ClearLog()
+        {
         }
     }
 }

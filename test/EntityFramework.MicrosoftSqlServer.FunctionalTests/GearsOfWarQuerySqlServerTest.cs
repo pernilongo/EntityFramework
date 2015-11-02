@@ -612,6 +612,19 @@ INNER JOIN [CogTag] AS [t] ON [g].[FullName] = (
                 Sql);
         }
 
+        public override void Left_outer_join_via_null_comparison_in_filter_top_level()
+        {
+            base.Left_outer_join_via_null_comparison_in_filter_top_level();
+
+            Assert.Equal(
+                @"SELECT [g].[Nickname], [g].[SquadId], [g].[AssignedCityName], [g].[CityOrBirthName], [g].[Discriminator], [g].[FullName], [g].[LeaderNickname], [g].[LeaderSquadId], [g].[Rank]
+FROM [Gear] AS [g]
+LEFT JOIN [Gear] AS [g.Leader] ON ([g].[LeaderNickname] = [g.Leader].[Nickname]) AND ([g].[LeaderSquadId] = [g.Leader].[SquadId])
+WHERE [g].[Discriminator] IN ('Officer', 'Gear') AND ([g].[LeaderNickname] IS NULL OR [g.Leader].[LeaderNickname] IS NULL)
+ORDER BY [g].[LeaderNickname], [g].[LeaderSquadId]",
+                Sql);
+        }
+
         public GearsOfWarQuerySqlServerTest(GearsOfWarQuerySqlServerFixture fixture, ITestOutputHelper testOutputHelper)
             : base(fixture)
         {

@@ -409,6 +409,11 @@ namespace Microsoft.Data.Entity.Query
             Check.NotNull(baseVisitAction, nameof(baseVisitAction));
             Check.NotNull(operatorToFlatten, nameof(operatorToFlatten));
 
+            if (QueryCompilationContext.OuterJoins.Contains(joinClause))
+            {
+                outerJoin = true;
+            }
+
             RequiresClientJoin = true;
 
             var previousQuerySource = FindPreviousQuerySource(queryModel, index);

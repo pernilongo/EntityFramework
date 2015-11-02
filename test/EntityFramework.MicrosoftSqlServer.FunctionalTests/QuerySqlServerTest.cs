@@ -3725,6 +3725,19 @@ FROM [Orders] AS [o]
                 Sql);
         }
 
+        public override void OuterJoin_navigation_expansion()
+        {
+            base.OuterJoin_navigation_expansion();
+
+            Assert.Equal(
+                @"SELECT [e].[EmployeeID], [e].[City], [e].[Country], [e].[FirstName], [e].[ReportsTo], [e].[Title]
+FROM [Employees] AS [e]
+LEFT JOIN [Employees] AS [e.Manager] ON [e].[ReportsTo] = [e.Manager].[EmployeeID]
+WHERE [e].[ReportsTo] IS NULL OR [e.Manager].[ReportsTo] IS NULL
+ORDER BY [e].[ReportsTo]",
+                Sql);
+        }
+
         public override void Select_correlated_subquery_ordered()
         {
             base.Select_correlated_subquery_ordered();
@@ -4061,6 +4074,8 @@ FROM [Customers] AS [c]
 ORDER BY COALESCE([c].[Region], 'ZZ')",
                 Sql);
         }
+
+        protected override void ClearLog() => TestSqlLoggerFactory.Reset();
 
         private static string Sql => TestSqlLoggerFactory.Sql;
     }

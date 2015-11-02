@@ -231,8 +231,10 @@ namespace Microsoft.Data.Entity.Query
 
             _queryOptimizer.Optimize(QueryCompilationContext.QueryAnnotations, queryModel);
 
-            _navigationRewritingExpressionVisitorFactory.Create(this)
-                .Rewrite(queryModel);
+            var navigationRewriteExpressionVisitor = _navigationRewritingExpressionVisitorFactory.Create(this);
+            navigationRewriteExpressionVisitor.Rewrite(queryModel);
+
+            _queryCompilationContext.OuterJoins.AddRange(navigationRewriteExpressionVisitor.OuterJoins);
 
             queryModel.TransformExpressions(_subQueryMemberPushDownExpressionVisitor.Visit);
 
