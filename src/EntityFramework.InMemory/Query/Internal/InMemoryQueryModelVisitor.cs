@@ -14,6 +14,7 @@ using Microsoft.Data.Entity.Metadata.Internal;
 using Microsoft.Data.Entity.Query.ExpressionVisitors;
 using Microsoft.Data.Entity.Storage;
 using Microsoft.Data.Entity.Utilities;
+using Remotion.Linq;
 
 namespace Microsoft.Data.Entity.Query.Internal
 {
@@ -60,6 +61,11 @@ namespace Microsoft.Data.Entity.Query.Internal
             Check.NotNull(materializerFactory, nameof(materializerFactory));
 
             _materializerFactory = materializerFactory;
+        }
+
+        public override void VisitQueryModel([NotNull] QueryModel queryModel)
+        {
+            base.VisitQueryModel(queryModel);
         }
 
         protected override void IncludeNavigations(
