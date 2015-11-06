@@ -28,7 +28,7 @@ namespace Microsoft.Data.Entity.FunctionalTests
             modelBuilder.Entity<Officer>().HasBaseType<Gear>();
             modelBuilder.Entity<Officer>(b =>
                 {
-                    b.HasMany(o => o.Reports).WithOne().HasForeignKey(o => new { o.LeaderNickname, o.LeaderSquadId });
+                    b.HasMany(o => o.Reports).WithOne(g => g.Leader).HasForeignKey(o => new { o.LeaderNickname, o.LeaderSquadId });
                 });
 
             modelBuilder.Entity<CogTag>(b =>

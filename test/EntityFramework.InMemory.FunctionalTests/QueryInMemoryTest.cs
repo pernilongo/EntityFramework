@@ -15,5 +15,10 @@ namespace Microsoft.Data.Entity.InMemory.FunctionalTests
             : base(fixture)
         {
         }
+
+        public override void OuterJoin_navigation_expansion()
+        {
+            base.OuterJoin_navigation_expansion();
+        }
     }
 }

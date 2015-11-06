@@ -662,6 +662,32 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
+        [Fact]
+        public virtual void Left_outer_join_via_null_comparison_in_filter_top_level()
+        {
+            using (var context = CreateContext())
+            {
+                var query = from g in context.Gears
+                            where g.LeaderNickname == null || g.Leader.LeaderNickname == null
+                            select g;
+
+                var results = query.ToList();
+            }
+        }
+
+        [Fact]
+        public virtual void Optional_navigation_in_order_by()
+        {
+            using (var context = CreateContext())
+            {
+                var query = from g in context.Gears
+                            orderby g.Tag.Note
+                            select g;
+
+                var results = query.ToList();
+            }
+        }
+
         protected GearsOfWarContext CreateContext() => Fixture.CreateContext(TestStore);
 
         protected GearsOfWarQueryTestBase(TFixture fixture)
