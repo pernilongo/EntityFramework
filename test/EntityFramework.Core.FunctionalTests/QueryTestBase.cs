@@ -2457,6 +2457,25 @@ namespace Microsoft.Data.Entity.FunctionalTests
                  select c).Any());
         }
 
+
+
+
+
+        [Fact]
+        public virtual void Foo22()
+        {
+            AssertQuery<Customer, Employee>((cs, es) =>
+                (from c in cs
+                 from e in es.OrderBy(e => e.City).Take(5)
+                 select e.EmployeeID)
+                    .Select(e =>
+                        new
+                        {
+                            //Title = EF.Property<string>(e, "Title"),
+                            Id = e
+                        }));
+        }
+
         // TODO: Composite keys, slow..
 
         //        [Fact]
