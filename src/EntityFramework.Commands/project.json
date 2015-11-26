@@ -56,6 +56,10 @@
       }
     },
     "netcore50": {
+      "dependencies": {
+        "System.Diagnostics.Tools": "4.0.1-*",
+        "System.IO.FileSystem": "4.0.1-*"
+      },
       "bin": {
         "assembly": "lib\\netcore50\\_._"
       }

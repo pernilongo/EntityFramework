@@ -6,6 +6,7 @@ using JetBrains.Annotations;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Scaffolding.Internal.Configuration;
+using Microsoft.Data.Entity.Scaffolding.Pluralization;
 using Microsoft.Data.Entity.Utilities;
 
 namespace Microsoft.Data.Entity.Scaffolding.Internal
@@ -18,6 +19,7 @@ namespace Microsoft.Data.Entity.Scaffolding.Internal
         private IndentedStringBuilder _sb;
         private ModelConfiguration _model;
         private bool _foundFirstFluentApiForEntity;
+        private IPluralizationService _pluralizationService;
 
         public DbContextWriter(
             [NotNull] ScaffoldingUtilities scaffoldingUtilities,
@@ -27,6 +29,7 @@ namespace Microsoft.Data.Entity.Scaffolding.Internal
             Check.NotNull(cSharpUtilities, nameof(cSharpUtilities));
 
             ScaffoldingUtilities = scaffoldingUtilities;
+            _pluralizationService = new EnglishPluralizationService();
         }
 
         public virtual string WriteCode(
@@ -213,7 +216,7 @@ namespace Microsoft.Data.Entity.Scaffolding.Internal
             {
                 _sb.AppendLine("public virtual DbSet<"
                     + entityConfig.EntityType.Name
-                    + "> " + entityConfig.EntityType.Name
+                    + "> " + _pluralizationService.Pluralize(entityConfig.EntityType.Name)
                     + " { get; set; }");
             }
         }

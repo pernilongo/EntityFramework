@@ -14,6 +14,7 @@ using Microsoft.Data.Entity.Metadata.Internal;
 using Microsoft.Data.Entity.Migrations;
 using Microsoft.Data.Entity.Scaffolding.Internal;
 using Microsoft.Data.Entity.Scaffolding.Metadata;
+using Microsoft.Data.Entity.Scaffolding.Pluralization;
 using Microsoft.Data.Entity.Storage;
 using Microsoft.Data.Entity.Utilities;
 using Microsoft.Extensions.Logging;
@@ -32,6 +33,7 @@ namespace Microsoft.Data.Entity.Scaffolding
         private CSharpUniqueNamer<TableModel> _tableNamer;
         private readonly IRelationalTypeMapper _typeMapper;
         private readonly IDatabaseModelFactory _databaseModelFactory;
+        private IPluralizationService _pluralizationService;
 
         public RelationalScaffoldingModelFactory(
             [NotNull] ILoggerFactory loggerFactory,
@@ -45,6 +47,7 @@ namespace Microsoft.Data.Entity.Scaffolding
             Logger = loggerFactory.CreateCommandsLogger();
             _typeMapper = typeMapper;
             _databaseModelFactory = databaseModelFactory;
+            _pluralizationService = new EnglishPluralizationService();
         }
 
         public virtual IModel Create([NotNull] string connectionString, [CanBeNull] TableSelectionSet tableSelectionSet)
@@ -442,6 +445,10 @@ namespace Microsoft.Data.Entity.Scaffolding
                                 SelfReferencingPrincipalEndNavigationNamePattern,
                                 dependentEndNavigationPropertyName)
                             : modelUtilities.GetPrincipalEndCandidateNavigationPropertyName(foreignKey);
+                    if (!foreignKey.IsSelfPrimaryKeyReferencing())
+                    {
+                        principalEndNavigationPropertyCandidateName = _pluralizationService.Pluralize(principalEndNavigationPropertyCandidateName);
+                    }
                     var principalEndNavigationPropertyName =
                         CSharpUtilities.Instance.GenerateCSharpIdentifier(
                             principalEndNavigationPropertyCandidateName,
