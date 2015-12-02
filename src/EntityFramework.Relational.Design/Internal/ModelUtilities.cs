@@ -18,7 +18,8 @@ namespace Microsoft.Data.Entity.Scaffolding.Internal
             Check.NotNull(foreignKey, nameof(foreignKey));
 
             var candidateName = StripId(
-                FindCommonPrefix(foreignKey.Properties.Select(p => p.Name)));
+                foreignKey.Properties.Count == 1 ? foreignKey.Properties.Single().Name : string.Empty);
+            //FindCommonPrefix(foreignKey.Properties.Select(p => p.Name)));
 
             if (!string.IsNullOrEmpty(candidateName))
             {
