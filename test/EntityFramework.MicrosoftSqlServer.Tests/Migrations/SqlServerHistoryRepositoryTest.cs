@@ -29,7 +29,7 @@ namespace Microsoft.Data.Entity.Migrations
                 "CREATE TABLE [__EFMigrationsHistory] (" + EOL +
                 "    [MigrationId] nvarchar(150) NOT NULL," + EOL +
                 "    [ProductVersion] nvarchar(32) NOT NULL," + EOL +
-                "    CONSTRAINT [PK_HistoryRow] PRIMARY KEY ([MigrationId])" + EOL +
+                "    CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])" + EOL +
                 ");" + EOL,
                 sql);
         }
@@ -44,7 +44,7 @@ namespace Microsoft.Data.Entity.Migrations
                 "    CREATE TABLE [__EFMigrationsHistory] (" + EOL +
                 "        [MigrationId] nvarchar(150) NOT NULL," + EOL +
                 "        [ProductVersion] nvarchar(32) NOT NULL," + EOL +
-                "        CONSTRAINT [PK_HistoryRow] PRIMARY KEY ([MigrationId])" + EOL +
+                "        CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])" + EOL +
                 "    );" + EOL,
                 sql);
         }
@@ -105,7 +105,7 @@ namespace Microsoft.Data.Entity.Migrations
         private static IHistoryRepository CreateHistoryRepository()
         {
             var annotationsProvider = new SqlServerAnnotationProvider();
-            var sqlGenerator = new SqlServerSqlGenerator();
+            var sqlGenerator = new SqlServerSqlGenerationHelper();
             var typeMapper = new SqlServerTypeMapper();
 
             var commandBuilderFactory = new RelationalCommandBuilderFactory(
@@ -115,7 +115,7 @@ namespace Microsoft.Data.Entity.Migrations
 
             return new SqlServerHistoryRepository(
                 Mock.Of<IRelationalDatabaseCreator>(),
-                Mock.Of<ISqlCommandBuilder>(),
+                Mock.Of<IRawSqlCommandBuilder>(),
                 Mock.Of<ISqlServerConnection>(),
                 new DbContextOptions<DbContext>(
                     new Dictionary<Type, IDbContextOptionsExtension>
@@ -128,7 +128,7 @@ namespace Microsoft.Data.Entity.Migrations
                     new SqlServerMigrationsAnnotationProvider()),
                 new SqlServerMigrationsSqlGenerator(
                     commandBuilderFactory,
-                    new SqlServerSqlGenerator(),
+                    new SqlServerSqlGenerationHelper(),
                     typeMapper,
                     annotationsProvider),
                 annotationsProvider,

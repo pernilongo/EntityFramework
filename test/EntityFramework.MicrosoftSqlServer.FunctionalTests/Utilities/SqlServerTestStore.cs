@@ -10,16 +10,14 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Data.Entity.FunctionalTests.TestUtilities;
 using Microsoft.Data.Entity.FunctionalTests;
+using Microsoft.Data.Entity.FunctionalTests.TestUtilities;
 
 namespace Microsoft.Data.Entity.SqlServer.FunctionalTests
 {
     public class SqlServerTestStore : RelationalTestStore
     {
         public const int CommandTimeout = 90;
-
-        private static int _scratchCount;
 
         public static SqlServerTestStore GetOrCreateShared(string name, Action initializeDatabase)
             => new SqlServerTestStore(name).CreateShared(initializeDatabase);
@@ -29,12 +27,10 @@ namespace Microsoft.Data.Entity.SqlServer.FunctionalTests
         ///     where transactions are not appropriate.
         /// </summary>
         public static Task<SqlServerTestStore> CreateScratchAsync(bool createDatabase = true)
-            => new SqlServerTestStore("Microsoft.Data.SqlServer.Scratch_" + Interlocked.Increment(ref _scratchCount))
-                .CreateTransientAsync(createDatabase);
+            => new SqlServerTestStore(GetScratchDbName()).CreateTransientAsync(createDatabase);
 
         public static SqlServerTestStore CreateScratch(bool createDatabase = true)
-            => new SqlServerTestStore("Microsoft.Data.SqlServer.Scratch_" + Interlocked.Increment(ref _scratchCount))
-                .CreateTransient(createDatabase);
+            => new SqlServerTestStore(GetScratchDbName()).CreateTransient(createDatabase);
 
         private SqlConnection _connection;
         private SqlTransaction _transaction;
@@ -45,6 +41,19 @@ namespace Microsoft.Data.Entity.SqlServer.FunctionalTests
         private SqlServerTestStore(string name)
         {
             _name = name;
+        }
+
+        private static string GetScratchDbName()
+        {
+            string name;
+            do
+            {
+                name = "Scratch_" + Guid.NewGuid();
+            }
+            while (DatabaseExists(name)
+                   || DatabaseFilesExist(name));
+
+            return name;
         }
 
         private SqlServerTestStore CreateShared(Action initializeDatabase)
@@ -68,12 +77,7 @@ namespace Microsoft.Data.Entity.SqlServer.FunctionalTests
 
                 using (var command = master.CreateCommand())
                 {
-                    command.CommandTimeout = CommandTimeout;
-                    command.CommandText
-                        = $@"SELECT COUNT(*) FROM sys.databases WHERE name = N'{name}'";
-
-                    var exists = (int)await command.ExecuteScalarAsync() > 0;
-
+                    var exists = DatabaseExists(name);
                     if (exists && recreateIfAlreadyExists)
                     {
                         // if scriptPath is non-null assume that the script will handle dropping DB
@@ -146,10 +150,8 @@ namespace Microsoft.Data.Entity.SqlServer.FunctionalTests
                 using (var command = master.CreateCommand())
                 {
                     command.CommandTimeout = CommandTimeout;
-                    command.CommandText = $@"SELECT COUNT(*) FROM sys.databases WHERE name = N'{name}'";
 
-                    var exists = (int)command.ExecuteScalar() > 0;
-
+                    var exists = DatabaseExists(name);
                     if (exists && recreateIfAlreadyExists)
                     {
                         // if scriptPath is non-null assume that the script will handle dropping DB
@@ -271,8 +273,6 @@ namespace Microsoft.Data.Entity.SqlServer.FunctionalTests
 
         private async Task<SqlServerTestStore> CreateTransientAsync(bool createDatabase)
         {
-            await DeleteDatabaseAsync(_name);
-
             _connection = new SqlConnection(CreateConnectionString(_name));
 
             if (createDatabase)
@@ -293,14 +293,12 @@ namespace Microsoft.Data.Entity.SqlServer.FunctionalTests
                 await _connection.OpenAsync();
             }
 
-            _deleteDatabase = createDatabase;
+            _deleteDatabase = true;
             return this;
         }
 
         private SqlServerTestStore CreateTransient(bool createDatabase)
         {
-            DeleteDatabase(_name);
-
             _connection = new SqlConnection(CreateConnectionString(_name));
 
             if (createDatabase)
@@ -321,8 +319,32 @@ namespace Microsoft.Data.Entity.SqlServer.FunctionalTests
                 _connection.Open();
             }
 
-            _deleteDatabase = createDatabase;
+            _deleteDatabase = true;
             return this;
+        }
+
+        private static bool DatabaseExists(string name)
+        {
+            using (var master = new SqlConnection(CreateConnectionString("master")))
+            {
+                master.Open();
+
+                using (var command = master.CreateCommand())
+                {
+                    command.CommandTimeout = CommandTimeout;
+                    command.CommandText = $@"SELECT COUNT(*) FROM sys.databases WHERE name = N'{name}'";
+
+                    return (int)command.ExecuteScalar() > 0;
+                }
+            }
+        }
+
+        private static bool DatabaseFilesExist(string name)
+        {
+            var userFolder = Environment.GetEnvironmentVariable("USERPROFILE") ?? Environment.GetEnvironmentVariable("HOME");
+            return userFolder != null
+                   && (File.Exists(Path.Combine(userFolder, name + ".mdf"))
+                       || File.Exists(Path.Combine(userFolder, name + "_log.ldf")));
         }
 
         private async Task DeleteDatabaseAsync(string name)
@@ -344,29 +366,6 @@ namespace Microsoft.Data.Entity.SqlServer.FunctionalTests
                                           END", name);
 
                     await command.ExecuteNonQueryAsync();
-
-                    var userFolder = Environment.GetEnvironmentVariable("USERPROFILE") ?? Environment.GetEnvironmentVariable("HOME");
-
-                    if (userFolder != null)
-                    {
-                        try
-                        {
-                            File.Delete(Path.Combine(userFolder, name + ".mdf"));
-                        }
-                            // ReSharper disable once EmptyGeneralCatchClause
-                        catch (Exception)
-                        {
-                        }
-
-                        try
-                        {
-                            File.Delete(Path.Combine(userFolder, name + "_log.ldf"));
-                        }
-                            // ReSharper disable once EmptyGeneralCatchClause
-                        catch (Exception)
-                        {
-                        }
-                    }
                 }
             }
         }
@@ -390,29 +389,6 @@ namespace Microsoft.Data.Entity.SqlServer.FunctionalTests
                                           END", name);
 
                     command.ExecuteNonQuery();
-
-                    var userFolder = Environment.GetEnvironmentVariable("USERPROFILE") ?? Environment.GetEnvironmentVariable("HOME");
-
-                    if (userFolder != null)
-                    {
-                        try
-                        {
-                            File.Delete(Path.Combine(userFolder, name + ".mdf"));
-                        }
-                            // ReSharper disable once EmptyGeneralCatchClause
-                        catch
-                        {
-                        }
-
-                        try
-                        {
-                            File.Delete(Path.Combine(userFolder, name + "_log.ldf"));
-                        }
-                            // ReSharper disable once EmptyGeneralCatchClause
-                        catch
-                        {
-                        }
-                    }
                 }
             }
         }
@@ -506,11 +482,11 @@ namespace Microsoft.Data.Entity.SqlServer.FunctionalTests
         public static string CreateConnectionString(string name)
         {
             var connStrBuilder = new SqlConnectionStringBuilder
-                {
-                    //MultipleActiveResultSets = false,
-                    MultipleActiveResultSets = new Random().Next(0, 2) == 1,
-                    InitialCatalog = name
-                };
+            {
+                //MultipleActiveResultSets = false,
+                MultipleActiveResultSets = new Random().Next(0, 2) == 1,
+                InitialCatalog = name
+            };
             return connStrBuilder.ApplyConfiguration().ConnectionString;
         }
 

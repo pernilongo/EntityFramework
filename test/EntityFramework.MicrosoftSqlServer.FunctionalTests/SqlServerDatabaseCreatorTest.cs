@@ -409,15 +409,15 @@ namespace Microsoft.Data.Entity.SqlServer.FunctionalTests
                 IMigrationsModelDiffer modelDiffer,
                 IMigrationsSqlGenerator sqlGenerator,
                 IModel model,
-                ISqlCommandBuilder sqlCommandBuilder)
-                : base(connection, modelDiffer, sqlGenerator, model, sqlCommandBuilder)
+                IRawSqlCommandBuilder rawSqlCommandBuilder)
+                : base(connection, modelDiffer, sqlGenerator, model, rawSqlCommandBuilder)
             {
             }
 
-            public bool HasTablesBase() => base.HasTables();
+            public bool HasTablesBase() => HasTables();
 
             public Task<bool> HasTablesAsyncBase(CancellationToken cancellationToken = default(CancellationToken))
-                => base.HasTablesAsync(cancellationToken);
+                => HasTablesAsync(cancellationToken);
         }
     }
 }

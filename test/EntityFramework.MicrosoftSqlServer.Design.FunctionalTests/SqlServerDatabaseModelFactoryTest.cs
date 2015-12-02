@@ -1,4 +1,4 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
@@ -9,6 +9,7 @@ using Microsoft.Data.Entity.Migrations;
 using Microsoft.Data.Entity.Scaffolding;
 using Microsoft.Data.Entity.Scaffolding.Metadata;
 using Microsoft.Data.Entity.SqlServer.FunctionalTests;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace Microsoft.Data.Entity.SqlServer.Design.FunctionalTests
@@ -221,7 +222,7 @@ CREATE TABLE [dbo].[Identities] ( Id INT " + (isIdentity ? "IDENTITY(1,1)" : "")
         public void It_filters_tables()
         {
             var sql = @"CREATE TABLE [dbo].[K2] ( Id int, A varchar, UNIQUE (A ) );
-CREATE TABLE [dbo].[Kilimanjaro] ( Id int,B varchar, UNIQUE (B ), FOREIGN KEY (B) REFERENCES K2 (A) );";
+CREATE TABLE [dbo].[Kilimanjaro] ( Id int, B varchar, UNIQUE (B), FOREIGN KEY (B) REFERENCES K2 (A) );";
 
             var selectionSet = new TableSelectionSet(new List<string>{ "K2" });
 
@@ -257,16 +258,13 @@ CREATE TABLE [dbo].[Kilimanjaro] ( Id int,B varchar, UNIQUE (B ), FOREIGN KEY (B
         {
             _testStore.ExecuteNonQuery(createSql);
 
-            var reader = new SqlServerDatabaseModelFactory();
+            var reader = new SqlServerDatabaseModelFactory(new LoggerFactory());
 
             return reader.Create(_testStore.Connection.ConnectionString, selection ?? TableSelectionSet.All);
         }
 
         public void ExecuteNonQuery(string sql) => _testStore.ExecuteNonQuery(sql);
 
-        public void Dispose()
-        {
-            _testStore.Dispose();
-        }
+        public void Dispose() => _testStore.Dispose();
     }
 }
