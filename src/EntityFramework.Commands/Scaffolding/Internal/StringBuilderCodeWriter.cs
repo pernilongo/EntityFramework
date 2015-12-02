@@ -62,7 +62,7 @@ namespace Microsoft.Data.Entity.Scaffolding.Internal
                 generatedCode = EntityTypeWriter.WriteCode(entityConfig);
 
                 // output EntityType poco .cs file
-                var schema = ExtensionsProvider.For(entityConfig.EntityType).Schema;
+                var schema = ExtensionsProvider.For(entityConfig.EntityType).Schema ?? string.Empty;
                 var entityTypeFileName = entityConfig.EntityType.DisplayName() + FileExtension;
                 var entityTypeFileFullPath = FileService.OutputFile(
                     Path.Combine(outputPath, schema), entityTypeFileName, generatedCode);

@@ -2,6 +2,7 @@
 
 namespace Microsoft.Data.Entity.Scaffolding.Pluralization
 {
+    using JetBrains.Annotations;
     using System.Diagnostics.CodeAnalysis;
 
     /// <summary>
@@ -17,13 +18,13 @@ namespace Microsoft.Data.Entity.Scaffolding.Pluralization
         /// </summary>
         /// <param name="word">The word to pluralize.</param>
         /// <returns>The pluralized word </returns>
-        string Pluralize(string word);
+        string Pluralize([NotNull] string word);
 
         /// <summary>
         /// Singularize a word using the service.
         /// </summary>
         /// <param name="word">The word to singularize.</param>
         /// <returns>The singularized word.</returns>
-        string Singularize(string word);
+        string Singularize([NotNull] string word);
     }
 }

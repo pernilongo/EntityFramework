@@ -15,12 +15,12 @@ namespace Microsoft.Data.Entity.Scaffolding.Pluralization
         /// <summary>
         /// Get the singular.
         /// </summary>
-        public string Singular { get; private set; }
+        public virtual string Singular { get; private set; }
 
         /// <summary>
         /// Get the plural.
         /// </summary>
-        public string Plural { get; private set; }
+        public virtual string Plural { get; private set; }
 
         /// <summary>
         /// Create a new instance
