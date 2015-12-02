@@ -37,6 +37,8 @@ namespace Microsoft.Data.Entity.Storage.Internal
 
         private readonly Dictionary<string, RelationalTypeMapping> _simpleNameMappings;
         private readonly Dictionary<Type, RelationalTypeMapping> _simpleMappings;
+        private readonly RelationalSizedTypeMapping _sysname = new RelationalSizedTypeMapping("sysname", typeof(string), DbType.StringFixedLength, 128);
+        private readonly RelationalTypeMapping _xml = new RelationalTypeMapping("xml", typeof(string), DbType.Xml);
 
         public SqlServerTypeMapper()
         {
@@ -82,7 +84,9 @@ namespace Microsoft.Data.Entity.Storage.Internal
                     { "uniqueidentifier", _uniqueidentifier },
                     { "varbinary", _varbinary },
                     { "varchar", _varchar },
-                    { "varchar(max)", _varcharmax }
+                    { "varchar(max)", _varcharmax },
+                    { "sysname", _sysname },
+                    { "xml", _xml }
                 };
 
             _simpleMappings
