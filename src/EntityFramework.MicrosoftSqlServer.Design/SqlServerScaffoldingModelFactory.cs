@@ -109,18 +109,18 @@ namespace Microsoft.Data.Entity.Scaffolding
         {
             if (column.IsIdentity == true)
             {
-                if (typeof(byte) == propertyBuilder.Metadata.ClrType)
-                {
-                    Logger.LogWarning(
-                        SqlServerDesignStrings.DataTypeDoesNotAllowSqlServerIdentityStrategy(
-                            column.DisplayName, column.DataType));
-                }
-                else
-                {
+                //if (typeof(byte) == propertyBuilder.Metadata.ClrType)
+                //{
+                //    Logger.LogWarning(
+                //        SqlServerDesignStrings.DataTypeDoesNotAllowSqlServerIdentityStrategy(
+                //            column.DisplayName, column.DataType));
+                //}
+                //else
+                //{
                     propertyBuilder
                         .ValueGeneratedOnAdd()
                         .UseSqlServerIdentityColumn();
-                }
+                //}
             }
 
             if (_dateTimePrecisionTypes.Contains(column.DataType)

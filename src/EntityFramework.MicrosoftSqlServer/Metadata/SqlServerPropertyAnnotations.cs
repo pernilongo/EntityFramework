@@ -64,9 +64,9 @@ namespace Microsoft.Data.Entity.Metadata
                 var propertyType = Property.ClrType;
 
                 if ((value == SqlServerValueGenerationStrategy.IdentityColumn)
-                    && (!propertyType.IsInteger()
-                        || (propertyType == typeof(byte))
-                        || (propertyType == typeof(byte?))))
+                    && (!propertyType.IsInteger()))
+                        //|| (propertyType == typeof(byte))
+                        //|| (propertyType == typeof(byte?))))
                 {
                     throw new ArgumentException(SqlServerStrings.IdentityBadType(
                         Property.Name, Property.DeclaringEntityType.Name, propertyType.Name));
