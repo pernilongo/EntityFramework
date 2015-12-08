@@ -342,8 +342,10 @@ ORDER BY schema_name(f.schema_id), object_name(f.parent_object_id), f.name, fc.c
 
                         fkInfo = new ForeignKeyModel
                         {
+                            Name = fkName,
                             Table = table,
-                            PrincipalTable = principalTable
+                            PrincipalTable = principalTable,
+                            PrincipalTableName = principalSchemaTableName + "." + principalTableName
                         };
 
                         table.ForeignKeys.Add(fkInfo);

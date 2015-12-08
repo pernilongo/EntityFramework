@@ -318,9 +318,49 @@ namespace Microsoft.Data.Entity.Scaffolding
             foreach (var fk in foreignKeys)
             {
                 VisitForeignKey(modelBuilder, fk);
+                VisitForeignKeyReference(modelBuilder, fk);
             }
 
             return modelBuilder;
+        }
+
+        enum RecordStatusType { Active, Inactive, Deleted };
+
+        protected virtual IMutableProperty VisitForeignKeyReference([NotNull] ModelBuilder modelBuilder, [NotNull] ForeignKeyModel foreignKey)
+        {
+            Check.NotNull(modelBuilder, nameof(modelBuilder));
+            Check.NotNull(foreignKey, nameof(foreignKey));
+
+            if (!(foreignKey.PrincipalTableName.StartsWith("Reference.") &&
+                foreignKey.PrincipalTableName.EndsWith("Type")))
+            {
+                return null;
+            }
+
+            var dependentEntityType = modelBuilder.Model.FindEntityType(GetEntityTypeName(foreignKey.Table));
+
+            if (dependentEntityType == null)
+            {
+                return null;
+            }
+
+            var depProps = foreignKey.Columns
+                .Select(GetPropertyName)
+                .Select(@from => dependentEntityType.FindProperty(@from))
+                .ToList()
+                .AsReadOnly();
+
+            if (depProps.Any(p => p == null))
+            {
+                // TODO log which column was not found
+                Logger.LogWarning(RelationalDesignStrings.ForeignKeyScaffoldErrorPropertyNotFound(foreignKey.DisplayName));
+                return null;
+            }
+            var dependentProperty = depProps.Single();
+
+            var type = dependentProperty.ClrType = typeof(RecordStatusType);
+
+            return dependentProperty;
         }
 
         protected virtual IMutableForeignKey VisitForeignKey([NotNull] ModelBuilder modelBuilder, [NotNull] ForeignKeyModel foreignKey)
