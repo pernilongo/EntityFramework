@@ -4,6 +4,7 @@
 using System;
 using System.Linq;
 using Microsoft.Data.Entity.FunctionalTests.TestModels.Northwind;
+using Microsoft.Data.Entity.FunctionalTests.TestUtilities.Xunit;
 using Microsoft.Data.Entity.Internal;
 using Xunit;
 
@@ -34,6 +35,19 @@ namespace Microsoft.Data.Entity.FunctionalTests
                             .ToList();
                     }
                 });
+        }
+
+        [Fact]
+        public virtual void Include_closes_reader()
+        {
+            using (var context = CreateContext())
+            {
+                var customer = context.Set<Customer>().Include(c => c.Orders).FirstOrDefault();
+                var products = context.Products.ToList();
+
+                Assert.NotNull(customer);
+                Assert.NotNull(products);
+            }
         }
 
         [Fact]
@@ -252,7 +266,8 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
+        [MonoVersionCondition(Min = "4.2.0", SkipReason = "Queries fail on Mono < 4.2.0 due to differences in the implementation of LINQ")]
         public virtual void Include_collection_on_join_clause_with_filter()
         {
             using (var context = CreateContext())
@@ -271,7 +286,8 @@ namespace Microsoft.Data.Entity.FunctionalTests
             }
         }
 
-        [Fact]
+        [ConditionalFact]
+        [MonoVersionCondition(Min = "4.2.0", SkipReason = "Queries fail on Mono < 4.2.0 due to differences in the implementation of LINQ")]
         public virtual void Include_collection_on_join_clause_with_order_by_and_filter()
         {
             using (var context = CreateContext())
