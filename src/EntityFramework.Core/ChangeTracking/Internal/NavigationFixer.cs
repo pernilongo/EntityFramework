@@ -10,7 +10,6 @@ using JetBrains.Annotations;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Metadata.Internal;
-using Microsoft.Data.Entity.Update;
 
 namespace Microsoft.Data.Entity.ChangeTracking.Internal
 {
@@ -33,13 +32,13 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
             {
                 var navigations = foreignKey.GetNavigations().ToList();
 
-                var oldPrincipalEntry = entry.StateManager.GetPrincipal(entry, foreignKey, ValueSource.RelationshipSnapshot);
+                var oldPrincipalEntry = entry.StateManager.GetPrincipalUsingRelationshipSnapshot(entry, foreignKey);
                 if (oldPrincipalEntry != null)
                 {
                     Unfixup(navigations, oldPrincipalEntry, entry);
                 }
 
-                var principalEntry = entry.StateManager.GetPrincipal(entry, foreignKey, ValueSource.Current);
+                var principalEntry = entry.StateManager.GetPrincipal(entry, foreignKey);
                 if (principalEntry != null)
                 {
                     if (foreignKey.IsUnique)
@@ -150,15 +149,9 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
             {
                 var newKeyValues = foreignKey.PrincipalKey.Properties.Select(p => entry[p]).ToList();
 
-                var oldKey = entry.GetPrincipalKeyValue(foreignKey, ValueSource.RelationshipSnapshot);
-                if (!oldKey.IsInvalid)
+                foreach (var dependentEntry in entry.StateManager.GetDependentsUsingRelationshipSnapshot(entry, foreignKey).ToList())
                 {
-                    foreach (var dependent in entry.StateManager.Entries.Where(
-                        e => foreignKey.DeclaringEntityType.IsAssignableFrom(e.EntityType)
-                             && oldKey.Equals(e.GetDependentKeyValue(foreignKey))).ToList())
-                    {
-                        SetForeignKeyValue(foreignKey, dependent, newKeyValues);
-                    }
+                    SetForeignKeyValue(foreignKey, dependentEntry, newKeyValues);
                 }
             }
         }
@@ -303,7 +296,7 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
 
             foreach (var foreignKey in entityType.GetForeignKeys())
             {
-                var principalEntry = entry.StateManager.GetPrincipal(entry, foreignKey, ValueSource.RelationshipSnapshot);
+                var principalEntry = entry.StateManager.GetPrincipalUsingRelationshipSnapshot(entry, foreignKey);
                 if (principalEntry != null)
                 {
                     DoFixup(foreignKey, principalEntry, new[] { entry });
@@ -353,7 +346,7 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
                     foreach (var dependent in dependentEntries)
                     {
                         setter.SetClrValue(dependent.Entity, principalEntry.Entity);
-                        dependent.SetValue(navigation, principalEntry.Entity, ValueSource.RelationshipSnapshot);
+                        dependent.SetRelationshipSnapshotValue(navigation, principalEntry.Entity);
                     }
                 }
                 else
@@ -378,7 +371,7 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
                         // Issue #739
                         var value = dependentEntries.Single().Entity;
                         navigation.GetSetter().SetClrValue(principalEntry.Entity, value);
-                        principalEntry.SetValue(navigation, value, ValueSource.RelationshipSnapshot);
+                        principalEntry.SetRelationshipSnapshotValue(navigation, value);
                     }
                 }
             }
@@ -400,7 +393,7 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
             {
                 navigation.GetSetter().SetClrValue(dependentEntity, null);
 
-                dependentEntry.SetValue(navigation, null, ValueSource.RelationshipSnapshot);
+                dependentEntry.SetRelationshipSnapshotValue(navigation, null);
             }
             else
             {
@@ -416,7 +409,7 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
                 else
                 {
                     navigation.GetSetter().SetClrValue(oldPrincipalEntry.Entity, null);
-                    oldPrincipalEntry.SetValue(navigation, null, ValueSource.RelationshipSnapshot);
+                    oldPrincipalEntry.SetRelationshipSnapshotValue(navigation, null);
                 }
             }
         }
@@ -427,7 +420,7 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
             if (navigation != null)
             {
                 navigation.GetSetter().SetClrValue(dependentEntry.Entity, null);
-                dependentEntry.SetValue(navigation, null, ValueSource.RelationshipSnapshot);
+                dependentEntry.SetRelationshipSnapshotValue(navigation, null);
             }
 
             foreach (var property in foreignKey.Properties.Where(p => p.IsNullable).ToList())
@@ -452,7 +445,7 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
                 {
                     var dependentProperty = foreignKey.Properties[i];
                     dependentEntry[dependentProperty] = principalValue;
-                    dependentEntry.SetValue(dependentProperty, principalValue, ValueSource.RelationshipSnapshot);
+                    dependentEntry.SetRelationshipSnapshotValue(dependentProperty, principalValue);
                 }
             }
         }
@@ -477,7 +470,7 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
             foreach (var dependentProperty in dependentProperties)
             {
                 dependentEntry[dependentProperty] = null;
-                dependentEntry.SetValue(dependentProperty, null, ValueSource.RelationshipSnapshot);
+                dependentEntry.SetRelationshipSnapshotValue(dependentProperty, null);
             }
         }
 
@@ -518,7 +511,7 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
                     }
 
                     inverse.GetSetter().SetClrValue(entity, entry.Entity);
-                    inverseEntry.SetValue(inverse, entry.Entity, ValueSource.RelationshipSnapshot);
+                    inverseEntry.SetRelationshipSnapshotValue(inverse, entry.Entity);
                 }
             }
         }
@@ -539,7 +532,7 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
                     if (ReferenceEquals(inverse.GetGetter().GetClrValue(entity), entry.Entity))
                     {
                         inverse.GetSetter().SetClrValue(entity, null);
-                        entry.StateManager.GetOrCreateEntry(entity).SetValue(inverse, null, ValueSource.RelationshipSnapshot);
+                        entry.StateManager.GetOrCreateEntry(entity).SetRelationshipSnapshotValue(inverse, null);
                     }
                 }
             }

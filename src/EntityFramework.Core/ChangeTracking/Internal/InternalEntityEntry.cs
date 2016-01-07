@@ -2,12 +2,10 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using JetBrains.Annotations;
-using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Metadata.Internal;
@@ -92,10 +90,15 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
             // set all properties to modified if the entity state is explicitly set to Modified.
             if (newState == EntityState.Modified)
             {
-                foreach (var property in EntityType.GetProperties().Where(
-                    p => !p.IsReadOnlyAfterSave))
+                _stateData.FlagAllProperties(EntityType.PropertyCount(), PropertyFlag.TemporaryOrModified, flagged: true);
+
+                // Hot path; do not use LINQ
+                foreach (var property in EntityType.GetProperties())
                 {
-                    _stateData.FlagProperty(property.GetIndex(), PropertyFlag.TemporaryOrModified, isFlagged: true);
+                    if (property.IsReadOnlyAfterSave)
+                    {
+                        _stateData.FlagProperty(property.GetIndex(), PropertyFlag.TemporaryOrModified, isFlagged: false);
+                    }
                 }
 
                 StateManager.SingleQueryMode = false;
@@ -152,6 +155,13 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
             StateManager.Notify.StateChanged(this, oldState, StateManager.SingleQueryMode == true);
         }
 
+        public virtual void MarkUnchangedFromQuery()
+        {
+            StateManager.Notify.StateChanging(this, EntityState.Unchanged);
+            _stateData.EntityState = EntityState.Unchanged;
+            StateManager.Notify.StateChanged(this, EntityState.Detached, StateManager.SingleQueryMode == true);
+        }
+
         public virtual EntityState EntityState => _stateData.EntityState;
 
         public virtual bool IsModified(IProperty property)
@@ -170,7 +180,7 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
             {
                 MarkAsTemporary(property, isTemporary: false);
 
-                SetValue(property, this[property], ValueSource.Original);
+                SetOriginalValue(property, this[property]);
             }
 
             if ((currentState != EntityState.Modified)
@@ -232,7 +242,7 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
             = typeof(InternalEntityEntry).GetTypeInfo().GetDeclaredMethod(nameof(ReadOriginalValue));
 
         [UsedImplicitly]
-        private T ReadOriginalValue<T>(IProperty property, int originalValueIndex) 
+        private T ReadOriginalValue<T>(IProperty property, int originalValueIndex)
             => _originalValues.GetValue<T>(this, property, originalValueIndex);
 
         internal static readonly MethodInfo ReadRelationshipSnapshotValueMethod
@@ -250,12 +260,13 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
             => _storeGeneratedValues.GetValue<T>(currentValue, storeGeneratedIndex);
 
         internal static readonly MethodInfo GetCurrentValueMethod
-            = typeof(InternalEntityEntry).GetTypeInfo().GetDeclaredMethod(nameof(GetCurrentValue));
+            = typeof(InternalEntityEntry).GetMethods()
+                .Single(m => m.Name == nameof(GetCurrentValue) && m.IsGenericMethod);
 
-        public virtual TProperty GetCurrentValue<TProperty>([NotNull] IPropertyBase propertyBase)
+        public virtual TProperty GetCurrentValue<TProperty>(IPropertyBase propertyBase)
             => ((Func<InternalEntityEntry, TProperty>)propertyBase.GetPropertyAccessors().CurrentValueGetter)(this);
 
-        public virtual TProperty GetOriginalValue<TProperty>([NotNull] IProperty property)
+        public virtual TProperty GetOriginalValue<TProperty>(IProperty property)
             => ((Func<InternalEntityEntry, TProperty>)property.GetPropertyAccessors().OriginalValueGetter)(this);
 
         public virtual TProperty GetRelationshipSnapshotValue<TProperty>([NotNull] IPropertyBase propertyBase)
@@ -275,34 +286,28 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
             propertyBase.GetSetter().SetClrValue(Entity, value);
         }
 
-        public virtual object GetValue(IPropertyBase propertyBase, ValueSource valueSource = ValueSource.Current)
+        public virtual object GetCurrentValue(IPropertyBase propertyBase)
+            => this[propertyBase];
+
+        public virtual object GetOriginalValue(IPropertyBase propertyBase)
+            => _originalValues.GetValue(this, (IProperty)propertyBase);
+
+        public virtual object GetRelationshipSnapshotValue([NotNull] IPropertyBase propertyBase)
+            => _relationshipsSnapshot.GetValue(this, propertyBase);
+
+        public virtual void SetCurrentValue(IPropertyBase propertyBase, object value)
+            => this[propertyBase] = value;
+
+        public virtual void SetOriginalValue([NotNull] IPropertyBase propertyBase, [CanBeNull] object value)
         {
-            switch (valueSource)
-            {
-                case ValueSource.Original:
-                    return _originalValues.GetValue(this, (IProperty)propertyBase);
-                case ValueSource.RelationshipSnapshot:
-                    return _relationshipsSnapshot.GetValue(this, propertyBase);
-            }
-            return this[propertyBase];
+            EnsureOriginalValues();
+            _originalValues.SetValue((IProperty)propertyBase, value);
         }
 
-        public virtual void SetValue(IPropertyBase propertyBase, object value, ValueSource valueSource = ValueSource.Current)
+        public virtual void SetRelationshipSnapshotValue([NotNull] IPropertyBase propertyBase, [CanBeNull] object value)
         {
-            switch (valueSource)
-            {
-                case ValueSource.Original:
-                    EnsureOriginalValues();
-                    _originalValues.SetValue((IProperty)propertyBase, value);
-                    break;
-                case ValueSource.RelationshipSnapshot:
-                    EnsureRelationshipSnapshot();
-                    _relationshipsSnapshot.SetValue(propertyBase, value);
-                    break;
-                default:
-                    this[propertyBase] = value;
-                    break;
-            }
+            EnsureRelationshipSnapshot();
+            _relationshipsSnapshot.SetValue(propertyBase, value);
         }
 
         public virtual void EnsureOriginalValues()
@@ -333,47 +338,6 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
         {
             EnsureRelationshipSnapshot();
             _relationshipsSnapshot.AddToCollection(propertyBase, addedEntity);
-        }
-
-        public virtual IKeyValue GetPrimaryKeyValue(ValueSource valueSource = ValueSource.Current)
-        {
-            var key = EntityType.FindPrimaryKey();
-            return CreateKey(key, key.Properties, valueSource);
-        }
-
-        public virtual IKeyValue GetPrincipalKeyValue(IKey key, ValueSource valueSource = ValueSource.Current)
-            => CreateKey(key, key.Properties, valueSource);
-
-        public virtual IKeyValue GetPrincipalKeyValue(IForeignKey foreignKey, ValueSource valueSource = ValueSource.Current)
-        {
-            var key = foreignKey.PrincipalKey;
-            return CreateKey(key, key.Properties, valueSource);
-        }
-
-        public virtual IKeyValue GetDependentKeyValue(IForeignKey foreignKey, ValueSource valueSource = ValueSource.Current)
-        {
-            var key = foreignKey.PrincipalKey;
-            return CreateKey(key, foreignKey.Properties, valueSource);
-        }
-
-        private IKeyValue CreateKey(
-            [NotNull] IKey key,
-            [NotNull] IReadOnlyList<IProperty> properties,
-            ValueSource valueSource = ValueSource.Current)
-        {
-            var value = properties.Count == 1
-                ? (valueSource == ValueSource.Current
-                    ? this[properties[0]]
-                    : valueSource == ValueSource.Original
-                        ? _originalValues.GetValue(this, properties[0])
-                        : _relationshipsSnapshot.GetValue(this, properties[0]))
-                : (valueSource == ValueSource.Current
-                    ? properties.Select(p => this[p]).ToArray()
-                    : valueSource == ValueSource.Original
-                        ? properties.Select(p => _originalValues.GetValue(this, p)).ToArray()
-                        : properties.Select(p => _relationshipsSnapshot.GetValue(this, p)).ToArray());
-
-            return StateManager.CreateKey(key, value);
         }
 
         public virtual object this[[NotNull] IPropertyBase propertyBase]
@@ -572,9 +536,6 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
                || property.ClrType.IsDefaultValue(this[property]);
 
         public virtual bool IsKeySet => !EntityType.FindPrimaryKey().Properties.Any(p => p.ClrType.IsDefaultValue(this[p]));
-
-        [UsedImplicitly]
-        private string DebuggerDisplay => GetPrimaryKeyValue() + " - " + EntityState;
 
         public virtual EntityEntry ToEntityEntry() => new EntityEntry(this);
     }

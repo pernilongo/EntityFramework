@@ -43,14 +43,15 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.tt</DependentUpon>
     </Compile>
-    <Compile Include="Metadata\SqlServerColumnModel.cs" />
-    <Compile Include="Metadata\SqlServerIndexModel.cs" />
     <Compile Include="Internal\SqlDataReaderExtensions.cs" />
+    <Compile Include="Metadata\SqlServerColumnModelAnnotations.cs" />
+    <Compile Include="Metadata\SqlServerDatabaseModelAnnotationNames.cs" />
+    <Compile Include="Metadata\SqlServerIndexModelAnnotations.cs" />
+    <Compile Include="Metadata\SqlServerDatabaseModelExtensions.cs" />
     <Compile Include="SqlServerTableSelectionSetExtensions.cs" />
     <Compile Include="SqlServerDesignTimeServices.cs" />
     <Compile Include="SqlServerScaffoldingModelFactory.cs" />
     <Compile Include="SqlServerDatabaseModelFactory.cs" />
-    <Compile Include="Internal\SqlServerLiteralUtilities.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\InternalsVisibleTo.cs" />
     <Compile Include="Properties\SqlServerDesignStrings.Designer.cs">

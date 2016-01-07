@@ -1,13 +1,13 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using System;
 using JetBrains.Annotations;
+using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Metadata;
 
 namespace Microsoft.Data.Entity.Scaffolding.Metadata
 {
-    public class ColumnModel
+    public class ColumnModel : Annotatable
     {
         public virtual TableModel Table { get; [param: NotNull] set; }
         public virtual string Name { get; [param: NotNull] set; }

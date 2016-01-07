@@ -293,14 +293,6 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// GetCreateScript only handles operations in a single batch. For more advanced scenarios, override HistoryRepository.GetCreateScript in your provider.
-        /// </summary>
-        public static string InvalidCreateScript
-        {
-            get { return GetString("InvalidCreateScript"); }
-        }
-
-        /// <summary>
         /// Cannot configure the discriminator value for entity type '{entityType}' because it doesn't derive from '{rootEntityType}'.
         /// </summary>
         public static string DiscriminatorEntityTypeNotDerived([CanBeNull] object entityType, [CanBeNull] object rootEntityType)
@@ -338,14 +330,6 @@ namespace Microsoft.Data.Entity.Internal
         public static string NoDiscriminatorValue([CanBeNull] object entityType)
         {
             return string.Format(CultureInfo.CurrentCulture, GetString("NoDiscriminatorValue", "entityType"), entityType);
-        }
-
-        /// <summary>
-        /// Unable to materialize an entity of type '{entityType}' because it has an null key value.
-        /// </summary>
-        public static string InvalidKeyValue([CanBeNull] object entityType)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("InvalidKeyValue", "entityType"), entityType);
         }
 
         /// <summary>

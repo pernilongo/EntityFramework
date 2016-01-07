@@ -3,10 +3,11 @@
 
 using System.Collections.Generic;
 using JetBrains.Annotations;
+using Microsoft.Data.Entity.Infrastructure;
 
 namespace Microsoft.Data.Entity.Scaffolding.Metadata
 {
-    public class DatabaseModel
+    public class DatabaseModel : Annotatable
     {
         [CanBeNull]
         public virtual string DatabaseName { get; [param: CanBeNull] set; }
@@ -14,6 +15,7 @@ namespace Microsoft.Data.Entity.Scaffolding.Metadata
         [CanBeNull]
         public virtual string DefaultSchemaName { get; [param: CanBeNull] set; }
 
-        public virtual IList<TableModel> Tables { get; } = new List<TableModel>();
+        public virtual ICollection<TableModel> Tables { get; } = new List<TableModel>();
+        public virtual ICollection<SequenceModel> Sequences { get; } = new List<SequenceModel>();
     }
 }

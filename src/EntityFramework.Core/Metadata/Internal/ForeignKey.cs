@@ -5,12 +5,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
+using Microsoft.Data.Entity.ChangeTracking.Internal;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Utilities;
 
 namespace Microsoft.Data.Entity.Metadata.Internal
 {
-    public class ForeignKey : ConventionalAnnotatable, IMutableForeignKey
+    public class ForeignKey 
+        : ConventionalAnnotatable, IMutableForeignKey, IDependentKeyValueFactorySource, IDependentsMapFactorySource
     {
         private DeleteBehavior? _deleteBehavior;
         private bool? _isUnique;
@@ -266,7 +268,6 @@ namespace Microsoft.Data.Entity.Metadata.Internal
 
         public virtual void SetDeleteBehavior(DeleteBehavior deleteBehavior, ConfigurationSource configurationSource)
         {
-            Check.IsDefined(deleteBehavior, nameof(deleteBehavior));
             _deleteBehavior = deleteBehavior;
             UpdateDeleteBehaviorConfigurationSource(configurationSource);
         }
@@ -463,5 +464,11 @@ namespace Microsoft.Data.Entity.Metadata.Internal
         private static bool ArePropertyTypesCompatible(IReadOnlyList<IProperty> principalProperties, IReadOnlyList<IProperty> dependentProperties)
             => principalProperties.Select(p => p.ClrType.UnwrapNullableType()).SequenceEqual(
                 dependentProperties.Select(p => p.ClrType.UnwrapNullableType()));
+
+        // Note: This is set and used only by IdentityMapFactoryFactory, which ensures thread-safety
+        public virtual object DependentKeyValueFactory { get; set; }
+
+        // Note: This is set and used only by IdentityMapFactoryFactory, which ensures thread-safety
+        public virtual Func<IDependentsMap> DependentsMapFactory { get; set; }
     }
 }

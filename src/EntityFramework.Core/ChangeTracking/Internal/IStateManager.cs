@@ -5,10 +5,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
-using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Storage;
-using Microsoft.Data.Entity.Update;
 
 namespace Microsoft.Data.Entity.ChangeTracking.Internal
 {
@@ -16,11 +14,11 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
     {
         InternalEntityEntry GetOrCreateEntry([NotNull] object entity);
 
-        InternalEntityEntry StartTracking([NotNull] IEntityType entityType, [NotNull] object entity, ValueBuffer valueBuffer);
+        InternalEntityEntry StartTrackingFromQuery([NotNull] IEntityType entityType, [NotNull] object entity, ValueBuffer valueBuffer);
 
         void BeginTrackingQuery();
 
-        InternalEntityEntry TryGetEntry([NotNull] IKeyValue keyValueValue);
+        InternalEntityEntry TryGetEntry([NotNull] IKey key, ValueBuffer valueBuffer, bool throwOnNullKey);
 
         InternalEntityEntry TryGetEntry([NotNull] object entity);
 
@@ -34,13 +32,20 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
 
         void StopTracking([NotNull] InternalEntityEntry entry);
 
-        InternalEntityEntry GetPrincipal([NotNull] InternalEntityEntry dependentEntry, [NotNull] IForeignKey foreignKey, ValueSource valueSource);
+        InternalEntityEntry GetPrincipal([NotNull] InternalEntityEntry dependentEntry, [NotNull] IForeignKey foreignKey);
 
-        void UpdateIdentityMap([NotNull] InternalEntityEntry entry, [NotNull] IKeyValue oldKeyValue, [NotNull] IKey principalKey);
+        InternalEntityEntry GetPrincipalUsingRelationshipSnapshot([NotNull] InternalEntityEntry dependentEntry, [NotNull] IForeignKey foreignKey);
+
+        void UpdateIdentityMap([NotNull] InternalEntityEntry entry, [NotNull] IKey principalKey);
+
+        void UpdateDependentMap([NotNull] InternalEntityEntry entry, [NotNull] IForeignKey foreignKey);
 
         IEnumerable<InternalEntityEntry> GetDependentsFromNavigation([NotNull] InternalEntityEntry principalEntry, [NotNull] IForeignKey foreignKey);
 
         IEnumerable<InternalEntityEntry> GetDependents([NotNull] InternalEntityEntry principalEntry, [NotNull] IForeignKey foreignKey);
+
+        IEnumerable<InternalEntityEntry> GetDependentsUsingRelationshipSnapshot(
+            [NotNull] InternalEntityEntry principalEntry, [NotNull] IForeignKey foreignKey);
 
         int SaveChanges(bool acceptAllChangesOnSuccess);
 
@@ -51,7 +56,5 @@ namespace Microsoft.Data.Entity.ChangeTracking.Internal
         DbContext Context { get; }
 
         bool? SingleQueryMode { get; set; }
-
-        IKeyValue CreateKey([NotNull] IKey key, [CanBeNull] object value);
     }
 }

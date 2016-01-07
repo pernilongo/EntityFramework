@@ -117,8 +117,8 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="CannotInterpretSqlServerStringLiteral" xml:space="preserve">
-    <value>Unable to interpret the string {sqlServerStringLiteral} as a SQLServer string literal.</value>
+  <data name="CannotInterpretDefaultValue" xml:space="preserve">
+    <value>For column {columnId} unable to interpret default value {defaultValue}. Will not generate code setting a default value for the property {propertyName} on entity type {entityTypeName}.</value>
   </data>
   <data name="ColumnNameEmptyOnForeignKey" xml:space="preserve">
     <value>Found a column on foreign key [{schemaName}].[{tableName}].[{fkName}] with an empty or null name. Not including column in foreign key</value>
@@ -132,8 +132,14 @@
   <data name="DataTypeDoesNotAllowSqlServerIdentityStrategy" xml:space="preserve">
     <value>For column {columnId}. This column is set up as an Identity column, but the SQL Server data type is {sqlServerDataType}. This will be mapped to CLR type byte which does not allow the SqlServerValueGenerationStrategy.IdentityColumn setting. Generating a matching Property but ignoring the Identity setting.</value>
   </data>
+  <data name="ForeignKeyNameEmpty" xml:space="preserve">
+    <value>Found a foreign key on table [{schemaName}].[{tableName}] with an empty or null name. Skipping foreign key.</value>
+  </data>
   <data name="IndexNameEmpty" xml:space="preserve">
     <value>Found an index on table [{schemaName}].[{tableName}] with an empty or null name. Skipping index.</value>
+  </data>
+  <data name="SequenceNameEmpty" xml:space="preserve">
+    <value>Found a sequence in schema [{schemaName}] with an empty or null name. Skipping sequence.</value>
   </data>
   <data name="UnableToConvertDefaultValue" xml:space="preserve">
     <value>For column {columnId} unable to convert default value {defaultValue} into type {propertyType}. Will not generate code setting a default value for the property {propertyName} on entity type {entityTypeName}.</value>

@@ -124,12 +124,12 @@ namespace Microsoft.Data.Entity.Scaffolding.Internal
 
         public virtual KeyFluentApiConfiguration CreateKeyFluentApiConfiguration(
             [NotNull] string lambdaIdentifier,
-            [NotNull] IReadOnlyList<Property> properties)
+            [NotNull] Key key)
         {
             Check.NotEmpty(lambdaIdentifier, nameof(lambdaIdentifier));
-            Check.NotEmpty(properties, nameof(properties));
+            Check.NotNull(key, nameof(key));
 
-            return new KeyFluentApiConfiguration(lambdaIdentifier, properties);
+            return new KeyFluentApiConfiguration(lambdaIdentifier, key);
         }
 
         public virtual AttributeConfiguration CreateAttributeConfiguration(
@@ -151,5 +151,8 @@ namespace Microsoft.Data.Entity.Scaffolding.Internal
 
             return new IndexConfiguration(lambdaIdentifier, index);
         }
+
+        public virtual SequenceConfiguration CreateSequenceConfiguration()
+            => new SequenceConfiguration();
     }
 }

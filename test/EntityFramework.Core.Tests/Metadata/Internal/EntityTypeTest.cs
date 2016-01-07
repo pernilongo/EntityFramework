@@ -365,8 +365,12 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var model = new Model();
 
             var a = model.AddEntityType(typeof(A));
-            var pk = a.SetPrimaryKey(a.AddProperty(A.GProperty));
-            a.AddKey(a.AddProperty(A.EProperty));
+            var g = a.AddProperty(A.GProperty);
+            g.IsNullable = false;
+            var e = a.AddProperty(A.EProperty);
+            e.IsNullable = false;
+            var pk = a.SetPrimaryKey(g);
+            a.AddKey(e);
 
             var b = model.AddEntityType(typeof(B));
             b.AddProperty(B.FProperty);
@@ -397,8 +401,8 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var model = new Model();
 
             var a = model.AddEntityType(typeof(A));
-            a.AddProperty(A.GProperty);
-            a.AddProperty(A.EProperty);
+            a.AddProperty(A.GProperty).IsNullable = false;
+            a.AddProperty(A.EProperty).IsNullable = false;
 
             var b = model.AddEntityType(typeof(B));
             b.AddProperty(B.FProperty);
@@ -422,8 +426,12 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var model = new Model();
 
             var a = model.AddEntityType(typeof(A));
-            a.SetPrimaryKey(a.AddProperty(A.GProperty));
-            a.AddKey(a.AddProperty(A.EProperty));
+            var g = a.AddProperty(A.GProperty);
+            g.IsNullable = false;
+            a.SetPrimaryKey(g);
+            var e = a.AddProperty(A.EProperty);
+            e.IsNullable = false;
+            a.AddKey(e);
 
             var b = model.AddEntityType(typeof(B));
             b.AddProperty(B.FProperty);
@@ -463,14 +471,18 @@ namespace Microsoft.Data.Entity.Metadata.Internal
 
             var a = model.AddEntityType(typeof(A));
             var b = model.AddEntityType(typeof(B));
-            var key = b.AddKey(b.AddProperty(B.HProperty));
+            var h = b.AddProperty(B.HProperty);
+            h.IsNullable = false;
+            var key = b.AddKey(h);
 
             Assert.Equal(
                 CoreStrings.DerivedEntityCannotHaveKeys(typeof(B).FullName),
                 Assert.Throws<InvalidOperationException>(() => { b.HasBaseType(a); }).Message);
 
             b.RemoveKey(key.Properties);
-            b.SetPrimaryKey(b.AddProperty(B.FProperty));
+            var f = b.AddProperty(B.FProperty);
+            f.IsNullable = false;
+            b.SetPrimaryKey(f);
 
             Assert.Equal(
                 CoreStrings.DerivedEntityCannotHaveKeys(typeof(B).FullName),
@@ -1203,6 +1215,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var entityType = model.AddEntityType(typeof(Customer));
             var idProperty = entityType.GetOrAddProperty(Customer.IdProperty);
             var nameProperty = entityType.GetOrAddProperty(Customer.NameProperty);
+            nameProperty.IsNullable = false;
 
             var key1 = entityType.SetPrimaryKey(new[] { idProperty, nameProperty });
 
@@ -1253,6 +1266,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var entityType = model.AddEntityType(typeof(Customer));
             var idProperty = entityType.GetOrAddProperty(Customer.IdProperty);
             var nameProperty = entityType.GetOrAddProperty(Customer.NameProperty);
+            nameProperty.IsNullable = false;
 
             var key1 = entityType.GetOrSetPrimaryKey(new[] { idProperty, nameProperty });
 
@@ -1312,8 +1326,9 @@ namespace Microsoft.Data.Entity.Metadata.Internal
 
             var orderType = model.AddEntityType(typeof(Order));
             var fk = orderType.GetOrAddForeignKey(orderType.GetOrAddProperty(Order.CustomerIdProperty), customerPk, entityType);
-
-            entityType.SetPrimaryKey(entityType.GetOrAddProperty(Customer.NameProperty));
+            var nameProperty = entityType.GetOrAddProperty(Customer.NameProperty);
+            nameProperty.IsNullable = false;
+            entityType.SetPrimaryKey(nameProperty);
 
             Assert.Equal(2, entityType.GetKeys().Count());
             Assert.Same(customerPk, entityType.FindKey(idProperty));
@@ -1328,6 +1343,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var entityType = model.AddEntityType(typeof(Customer));
             var idProperty = entityType.GetOrAddProperty(Customer.IdProperty);
             var nameProperty = entityType.GetOrAddProperty(Customer.NameProperty);
+            nameProperty.IsNullable = false;
 
             var key1 = entityType.AddKey(new[] { idProperty, nameProperty });
 
@@ -1364,6 +1380,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var entityType = model.AddEntityType(typeof(Customer));
             var idProperty = entityType.GetOrAddProperty(Customer.IdProperty);
             var nameProperty = entityType.GetOrAddProperty(Customer.NameProperty);
+            nameProperty.IsNullable = false;
             entityType.GetOrAddKey(new[] { idProperty, nameProperty });
 
             Assert.Equal(
@@ -1391,11 +1408,29 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var entityType = model.AddEntityType(typeof(Customer));
             var idProperty = entityType.GetOrAddProperty(Customer.IdProperty);
             var nameProperty = entityType.GetOrAddProperty(Customer.NameProperty);
+            nameProperty.IsNullable = false;
             entityType.GetOrSetPrimaryKey(new[] { idProperty, nameProperty });
 
             Assert.Equal(
                 CoreStrings.DuplicateKey("{'" + Customer.IdProperty.Name + "', '" + Customer.NameProperty.Name + "'}", typeof(Customer).Name, typeof(Customer).Name),
                 Assert.Throws<InvalidOperationException>(() => entityType.AddKey(new[] { idProperty, nameProperty })).Message);
+        }
+
+        [Fact]
+        public void Adding_a_key_throws_if_any_properties_are_part_of_derived_foreign_key()
+        {
+            var model = new Model();
+            var baseType = model.AddEntityType(typeof(BaseType));
+            var idProperty = baseType.GetOrAddProperty(Customer.IdProperty);
+            var fkProperty = baseType.AddProperty("fk", typeof(int));
+            var key = baseType.GetOrAddKey(new[] { idProperty });
+            IMutableEntityType entityType = model.AddEntityType(typeof(Customer));
+            entityType.BaseType = baseType;
+            entityType.AddForeignKey(new[] { fkProperty }, key, entityType);
+
+            Assert.Equal(
+                CoreStrings.KeyPropertyInForeignKey("fk", typeof(BaseType).Name),
+                Assert.Throws<InvalidOperationException>(() => baseType.GetOrAddKey(new[] { fkProperty })).Message);
         }
 
         [Fact]
@@ -1405,6 +1440,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var entityType = model.AddEntityType(typeof(Customer));
             var idProperty = entityType.GetOrAddProperty(Customer.IdProperty);
             var nameProperty = entityType.GetOrAddProperty(Customer.NameProperty);
+            nameProperty.IsNullable = false;
 
             Assert.Null(entityType.RemoveKey(new[] { idProperty }));
 
@@ -1451,7 +1487,9 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var customerType = model.AddEntityType(typeof(Customer));
             var idProperty = customerType.AddProperty(Customer.IdProperty);
             var nameProperty = customerType.AddProperty(Customer.NameProperty);
+            nameProperty.IsNullable = false;
             var otherNameProperty = customerType.AddProperty("OtherNameProperty", typeof(string));
+            otherNameProperty.IsNullable = false;
 
             var k2 = customerType.GetOrAddKey(nameProperty);
             var k4 = customerType.GetOrAddKey(new[] { idProperty, otherNameProperty });
@@ -1468,6 +1506,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var entityType = model.AddEntityType(typeof(Customer));
             var idProperty = entityType.GetOrAddProperty(Customer.IdProperty);
             var nameProperty = entityType.GetOrAddProperty(Customer.NameProperty);
+            nameProperty.IsNullable = false;
 
             Assert.False(((IProperty)idProperty).IsReadOnlyAfterSave);
             Assert.False(((IProperty)nameProperty).IsReadOnlyAfterSave);
@@ -1598,7 +1637,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var fkProperty = entityType2.GetOrAddProperty(Order.CustomerIdProperty);
 
             Assert.Equal(
-                CoreStrings.ForeignKeyPropertiesWrongEntity("{'" + Order.CustomerIdProperty.Name + "'}", typeof(Customer).FullName),
+                CoreStrings.ForeignKeyPropertiesWrongEntity("{'" + Order.CustomerIdProperty.Name + "'}", typeof(Customer).Name),
                 Assert.Throws<ArgumentException>(() => entityType1.AddForeignKey(new[] { fkProperty }, entityType2.GetOrAddKey(idProperty), entityType2)).Message);
         }
 
@@ -1613,8 +1652,25 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             entityType.RemoveProperty(fkProperty.Name);
 
             Assert.Equal(
-                CoreStrings.ForeignKeyPropertiesWrongEntity("{'fk'}", typeof(Customer).FullName),
+                CoreStrings.ForeignKeyPropertiesWrongEntity("{'fk'}", typeof(Customer).Name),
                 Assert.Throws<ArgumentException>(() => entityType.AddForeignKey(new[] { fkProperty }, key, entityType)).Message);
+        }
+
+        [Fact]
+        public void Adding_a_foreign_key_throws_if_any_properties_are_part_of_inherited_key()
+        {
+            var model = new Model();
+            var baseType = model.AddEntityType(typeof(BaseType));
+            var idProperty = baseType.GetOrAddProperty(Customer.IdProperty);
+            var idProperty2 = baseType.GetOrAddProperty("id2", typeof(int));
+            var key = baseType.GetOrAddKey(new[] { idProperty, idProperty2 });
+            IMutableEntityType entityType = model.AddEntityType(typeof(Customer));
+            entityType.BaseType = baseType;
+            var fkProperty = entityType.AddProperty("fk", typeof(int));
+
+            Assert.Equal(
+                CoreStrings.ForeignKeyPropertyInKey(Customer.IdProperty.Name, typeof(Customer).Name),
+                Assert.Throws<InvalidOperationException>(() => entityType.AddForeignKey(new[] { fkProperty, idProperty }, key, entityType)).Message);
         }
 
         [Fact]
@@ -1758,6 +1814,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var customerType = model.AddEntityType(typeof(Customer));
             var idProperty = customerType.GetOrAddProperty(Customer.IdProperty);
             var nameProperty = customerType.GetOrAddProperty(Customer.NameProperty);
+            nameProperty.IsNullable = false;
             var customerKey = customerType.GetOrAddKey(idProperty);
             var otherCustomerKey = customerType.GetOrAddKey(new[] { idProperty, nameProperty });
 

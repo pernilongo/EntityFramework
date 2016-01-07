@@ -4,11 +4,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
+using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Migrations;
 
 namespace Microsoft.Data.Entity.Scaffolding.Metadata
 {
-    public class ForeignKeyModel
+    public class ForeignKeyModel : Annotatable
     {
         [CanBeNull]
         public virtual TableModel Table { get; [param: CanBeNull] set; }
@@ -31,6 +32,6 @@ namespace Microsoft.Data.Entity.Scaffolding.Metadata
         //public virtual ReferentialAction OnUpdate { get; [param: NotNull] set; }
 
         public virtual string DisplayName
-            => Table?.DisplayName + "(" + string.Join(",", Columns.Select(f => f.Name)) + ")";
+            => Table?.DisplayName + "(" + string.Join(",", Columns.OrderBy(f => f.Ordinal).Select(f => f.Column.Name)) + ")";
     }
 }

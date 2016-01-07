@@ -21,7 +21,7 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// A circular dependency was detected: {cycle}.
+        /// Unable to save changes because a circular dependency was detected in the data to be saved: '{cycle}'.
         /// </summary>
         public static string CircularDependency([CanBeNull] object cycle)
         {
@@ -58,14 +58,6 @@ namespace Microsoft.Data.Entity.Internal
         public static string IdentityConflict([CanBeNull] object entityType)
         {
             return string.Format(CultureInfo.CurrentCulture, GetString("IdentityConflict", "entityType"), entityType);
-        }
-
-        /// <summary>
-        /// The instance of entity type '{entityType}' cannot be tracked because it has an invalid (e.g. null or CLR default) primary key. Either set the key explicitly or consider using an IValueGenerator to generate unique key values.
-        /// </summary>
-        public static string InvalidPrimaryKey([CanBeNull] object entityType)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("InvalidPrimaryKey", "entityType"), entityType);
         }
 
         /// <summary>
@@ -741,7 +733,7 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// The property '{property}' on entity type '{entityType}' cannot be marked as nullable/optional because the property is a part of the primary key. Any property can be marked as non-nullable/required, but only properties of nullable types and which are not part of primary key can be marked as nullable/optional.
+        /// The property '{property}' on entity type '{entityType}' cannot be marked as nullable/optional because the property is a part of a key. Any property can be marked as non-nullable/required, but only properties of nullable types and which are not part of a key can be marked as nullable/optional.
         /// </summary>
         public static string CannotBeNullablePK([CanBeNull] object property, [CanBeNull] object entityType)
         {
@@ -1029,6 +1021,14 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
+        /// Unable to create or track an entity of type '{entityType}' because it has an null primary or alternate key value.
+        /// </summary>
+        public static string InvalidKeyValue([CanBeNull] object entityType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("InvalidKeyValue", "entityType"), entityType);
+        }
+
+        /// <summary>
         /// Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data, this mode should only be enabled during development.
         /// </summary>
         public static string SensitiveDataLoggingEnabled
@@ -1074,6 +1074,38 @@ namespace Microsoft.Data.Entity.Internal
         public static string PrincipalEntityTypeNotInRelationship([CanBeNull] object dependentEntityType, [CanBeNull] object principalEntityType, [CanBeNull] object entityType)
         {
             return string.Format(CultureInfo.CurrentCulture, GetString("PrincipalEntityTypeNotInRelationship", "dependentEntityType", "principalEntityType", "entityType"), dependentEntityType, principalEntityType, entityType);
+        }
+
+        /// <summary>
+        /// The property '{property}' cannot be part of a foreign key on '{entityType}' because it is contained in a key defined on a base entity type.
+        /// </summary>
+        public static string ForeignKeyPropertyInKey([CanBeNull] object property, [CanBeNull] object entityType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("ForeignKeyPropertyInKey", "property", "entityType"), property, entityType);
+        }
+
+        /// <summary>
+        /// The property '{property}' cannot be part of a key on '{entityType}' because it is contained in a foreign key defined on a derived entity type.
+        /// </summary>
+        public static string KeyPropertyInForeignKey([CanBeNull] object property, [CanBeNull] object entityType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("KeyPropertyInForeignKey", "property", "entityType"), property, entityType);
+        }
+
+        /// <summary>
+        /// A key on entity type '{entityType}' cannot contain the property '{property}' because it is nullable/optional. All properties on which a key is declared must be marked as non-nullable/required.
+        /// </summary>
+        public static string NullableKey([CanBeNull] object entityType, [CanBeNull] object property)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("NullableKey", "entityType", "property"), entityType, property);
+        }
+
+        // <summary>
+        // A second operation started on this context before a previous operation completed. Any instance members are not guaranteed to be thread safe.
+        // </summary>
+        public static string ConcurrentMethodInvocation
+        {
+            get { return GetString("ConcurrentMethodInvocation"); }
         }
 
         private static string GetString(string name, params string[] formatterNames)

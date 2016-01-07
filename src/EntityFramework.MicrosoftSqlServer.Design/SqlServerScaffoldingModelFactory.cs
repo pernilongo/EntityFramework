@@ -20,18 +20,13 @@ namespace Microsoft.Data.Entity.Scaffolding
     public class SqlServerScaffoldingModelFactory : RelationalScaffoldingModelFactory
     {
         private const int DefaultTimeTimePrecision = 7;
-        private readonly SqlServerLiteralUtilities _sqlServerLiteralUtilities;
 
         public SqlServerScaffoldingModelFactory(
             [NotNull] ILoggerFactory loggerFactory,
             [NotNull] IRelationalTypeMapper typeMapper,
-            [NotNull] IDatabaseModelFactory databaseModelFactory,
-            [NotNull] SqlServerLiteralUtilities sqlServerLiteralUtilities)
+            [NotNull] IDatabaseModelFactory databaseModelFactory)
             : base(loggerFactory, typeMapper, databaseModelFactory)
         {
-            Check.NotNull(sqlServerLiteralUtilities, nameof(sqlServerLiteralUtilities));
-
-            _sqlServerLiteralUtilities = sqlServerLiteralUtilities;
         }
 
         public override IModel Create(string connectionString, TableSelectionSet tableSelectionSet)
@@ -72,8 +67,8 @@ namespace Microsoft.Data.Entity.Scaffolding
             // override this behavior.
 
             // TODO use KeyConvention directly to detect when it will be applied
-            var pkColumns = table.Columns.OfType<SqlServerColumnModel>().Where(c => c.PrimaryKeyOrdinal.HasValue).ToList();
-            if (pkColumns.Count != 1 || pkColumns[0].IsIdentity)
+            var pkColumns = table.Columns.Where(c => c.PrimaryKeyOrdinal.HasValue).ToList();
+            if (pkColumns.Count != 1 || pkColumns[0].SqlServer().IsIdentity)
             {
                 return keyBuilder;
             }
@@ -95,7 +90,7 @@ namespace Microsoft.Data.Entity.Scaffolding
         {
             var indexBuilder = base.VisitIndex(builder, index);
 
-            if ((index as SqlServerIndexModel)?.IsClustered == true)
+            if (index.SqlServer().IsClustered)
             {
                 indexBuilder?.ForSqlServerIsClustered();
             }
@@ -105,13 +100,7 @@ namespace Microsoft.Data.Entity.Scaffolding
 
         private PropertyBuilder VisitTypeMapping(PropertyBuilder propertyBuilder, ColumnModel column)
         {
-            var sqlColumn = column as SqlServerColumnModel;
-            if (sqlColumn == null)
-            {
-                return propertyBuilder;
-            }
-
-            if (sqlColumn.IsIdentity)
+            if (column.SqlServer().IsIdentity)
             {
                 //if (typeof(byte) == propertyBuilder.Metadata.ClrType)
                 //{
@@ -127,10 +116,10 @@ namespace Microsoft.Data.Entity.Scaffolding
                 //}
             }
 
-            if (sqlColumn.DateTimePrecision.HasValue && sqlColumn.DateTimePrecision != DefaultTimeTimePrecision)
+            if (column.SqlServer().DateTimePrecision.HasValue && column.SqlServer().DateTimePrecision != DefaultTimeTimePrecision)
             {
                 propertyBuilder.Metadata.SetMaxLength(null);
-                propertyBuilder.HasColumnType($"{sqlColumn.DataType}({sqlColumn.DateTimePrecision.Value})");
+                propertyBuilder.HasColumnType($"{column.DataType}({column.SqlServer().DateTimePrecision.Value})");
             }
 
             // undo quirk in reverse type mapping to litters code with unnecessary nvarchar annotations
@@ -150,29 +139,42 @@ namespace Microsoft.Data.Entity.Scaffolding
                 ((Property)propertyBuilder.Metadata).SetValueGenerated(null, ConfigurationSource.Explicit);
                 propertyBuilder.Metadata.Relational().GeneratedValueSql = null;
 
-                var property = propertyBuilder.Metadata;
-                var defaultExpressionOrValue =
-                    _sqlServerLiteralUtilities
-                        .ConvertSqlServerDefaultValue(
-                            property.ClrType, column.DefaultValue);
-                if (defaultExpressionOrValue?.DefaultExpression != null)
+                var defaultExpression = ConvertSqlServerDefaultValue(column.DefaultValue);
+                if (defaultExpression != null)
                 {
-                    propertyBuilder.HasDefaultValueSql(defaultExpressionOrValue.DefaultExpression);
-                }
-                else if (defaultExpressionOrValue != null)
-                {
-                    // Note: defaultExpressionOrValue.DefaultValue == null is valid
-                    propertyBuilder.HasDefaultValue(defaultExpressionOrValue.DefaultValue);
+                    if (!(defaultExpression == "NULL"
+                            && propertyBuilder.Metadata.ClrType.IsNullableType()))
+                    {
+                        propertyBuilder.HasDefaultValueSql(defaultExpression);
+                    }
                 }
                 else
                 {
                     Logger.LogWarning(
-                        SqlServerDesignStrings.UnableToConvertDefaultValue(
-                            column.DisplayName, column.DefaultValue,
-                            property.ClrType, property.Name, property.DeclaringEntityType.Name));
+                        SqlServerDesignStrings.CannotInterpretDefaultValue(
+                            column.DisplayName,
+                            column.DefaultValue,
+                            propertyBuilder.Metadata.Name,
+                            propertyBuilder.Metadata.DeclaringEntityType.Name));
                 }
             }
             return propertyBuilder;
+        }
+
+        private string ConvertSqlServerDefaultValue(string sqlServerDefaultValue)
+        {
+            if (sqlServerDefaultValue.Length < 2)
+            {
+                return null;
+            }
+
+            while (sqlServerDefaultValue[0] == '('
+                   && sqlServerDefaultValue[sqlServerDefaultValue.Length - 1] == ')')
+            {
+                sqlServerDefaultValue = sqlServerDefaultValue.Substring(1, sqlServerDefaultValue.Length - 2);
+            }
+
+            return sqlServerDefaultValue;
         }
     }
 }

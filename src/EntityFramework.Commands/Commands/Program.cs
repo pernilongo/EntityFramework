@@ -14,6 +14,7 @@ using Microsoft.Data.Entity.Design;
 using Microsoft.Data.Entity.Design.Internal;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Utilities;
+using Microsoft.Dnx.Runtime;
 using Microsoft.Dnx.Runtime.Common.CommandLine;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.PlatformAbstractions;
@@ -239,7 +240,7 @@ namespace Microsoft.Data.Entity.Commands
                                 "[name]",
                                 "The name of the migration");
                             var outputDir = add.Option(
-                                "-o|--output-dir",
+                                "-o|--output-dir <path>",
                                 "The directory (and sub-namespace) to use. If omitted, \"Migrations\" is used.");
                             var context = add.Option(
                                 "-c|--context <context>",

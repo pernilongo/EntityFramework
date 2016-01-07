@@ -46,7 +46,6 @@ namespace Microsoft.Data.Entity.Utilities
 
     internal partial class ImplyGeneric<T>
     {
-        public SimpleKeyValueFactory<T> KeyFactoryType;
         public IAsyncEnumerable<T> AsyncEnum;
 
         public ClrPropertyGetter<object, T> GetterProp;
@@ -66,7 +65,7 @@ namespace Microsoft.Data.Entity.Utilities
 
             EF.Property<T>(null, null);
 
-            LinqOperatorProvider._InterceptExceptions<T>(null, null, null);
+            LinqOperatorProvider._InterceptExceptions<T>(null, null, null, null);
             LinqOperatorProvider._ToEnumerable<T>(null);
             LinqOperatorProvider._ToOrdered<T>(null);
             LinqOperatorProvider._ToSequence((T)new object());
@@ -74,7 +73,7 @@ namespace Microsoft.Data.Entity.Utilities
             LinqOperatorProvider._TrackEntities<T, object>(null, null, null, null);
             LinqOperatorProvider._Where<T>(null, null);
 
-            AsyncLinqOperatorProvider._InterceptExceptions<T>(null, null, null);
+            AsyncLinqOperatorProvider._InterceptExceptions<T>(null, null, null, null);
             AsyncLinqOperatorProvider._ToEnumerable<T>(null);
             AsyncLinqOperatorProvider._ToOrdered<T>(null);
             AsyncLinqOperatorProvider._ToSequence((T)new object());

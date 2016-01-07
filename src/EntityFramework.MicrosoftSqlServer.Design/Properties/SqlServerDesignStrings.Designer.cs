@@ -13,11 +13,11 @@ namespace Microsoft.Data.Entity.Internal
             = new ResourceManager("EntityFramework.MicrosoftSqlServer.Design.SqlServerDesignStrings", typeof(SqlServerDesignStrings).GetTypeInfo().Assembly);
 
         /// <summary>
-        /// Unable to interpret the string {sqlServerStringLiteral} as a SQLServer string literal.
+        /// For column {columnId} unable to interpret default value {defaultValue}. Will not generate code setting a default value for the property {propertyName} on entity type {entityTypeName}.
         /// </summary>
-        public static string CannotInterpretSqlServerStringLiteral([CanBeNull] object sqlServerStringLiteral)
+        public static string CannotInterpretDefaultValue([CanBeNull] object columnId, [CanBeNull] object defaultValue, [CanBeNull] object propertyName, [CanBeNull] object entityTypeName)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("CannotInterpretSqlServerStringLiteral", "sqlServerStringLiteral"), sqlServerStringLiteral);
+            return string.Format(CultureInfo.CurrentCulture, GetString("CannotInterpretDefaultValue", "columnId", "defaultValue", "propertyName", "entityTypeName"), columnId, defaultValue, propertyName, entityTypeName);
         }
 
         /// <summary>
@@ -53,11 +53,27 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
+        /// Found a foreign key on table [{schemaName}].[{tableName}] with an empty or null name. Skipping foreign key.
+        /// </summary>
+        public static string ForeignKeyNameEmpty([CanBeNull] object schemaName, [CanBeNull] object tableName)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("ForeignKeyNameEmpty", "schemaName", "tableName"), schemaName, tableName);
+        }
+
+        /// <summary>
         /// Found an index on table [{schemaName}].[{tableName}] with an empty or null name. Skipping index.
         /// </summary>
         public static string IndexNameEmpty([CanBeNull] object schemaName, [CanBeNull] object tableName)
         {
             return string.Format(CultureInfo.CurrentCulture, GetString("IndexNameEmpty", "schemaName", "tableName"), schemaName, tableName);
+        }
+
+        /// <summary>
+        /// Found a sequence in schema [{schemaName}] with an empty or null name. Skipping sequence.
+        /// </summary>
+        public static string SequenceNameEmpty([CanBeNull] object schemaName)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("SequenceNameEmpty", "schemaName"), schemaName);
         }
 
         /// <summary>

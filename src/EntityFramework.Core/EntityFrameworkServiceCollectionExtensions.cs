@@ -3,6 +3,7 @@
 
 using System;
 using JetBrains.Annotations;
+using Microsoft.Data.Entity;
 using Microsoft.Data.Entity.ChangeTracking.Internal;
 using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Internal;
@@ -84,7 +85,6 @@ namespace Microsoft.Extensions.DependencyInjection
                 .AddSingleton<IDbSetFinder, DbSetFinder>()
                 .AddSingleton<IDbSetInitializer, DbSetInitializer>()
                 .AddSingleton<IDbSetSource, DbSetSource>()
-                .AddSingleton<IKeyValueFactorySource, KeyValueFactorySource>()
                 .AddSingleton<ICollectionTypeFactory, CollectionTypeFactory>()
                 .AddSingleton<IEntityMaterializerSource, EntityMaterializerSource>()
                 .AddSingleton<IMemberMapper, MemberMapper>()
@@ -94,6 +94,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 .AddScoped<IKeyPropagator, KeyPropagator>()
                 .AddScoped<INavigationFixer, NavigationFixer>()
                 .AddScoped<IStateManager, StateManager>()
+                .AddScoped<IConcurrencyDetector, ConcurrencyDetector>()
                 .AddScoped<IInternalEntityEntryFactory, InternalEntityEntryFactory>()
                 .AddScoped<IInternalEntityEntryNotifier, InternalEntityEntryNotifier>()
                 .AddScoped<IInternalEntityEntrySubscriber, InternalEntityEntrySubscriber>()

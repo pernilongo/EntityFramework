@@ -1,12 +1,14 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Metadata;
+using Microsoft.Data.Entity.Metadata.Builders;
 using Microsoft.Data.Entity.Metadata.Internal;
 using Microsoft.Data.Entity.Scaffolding.Internal.Configuration;
 using Microsoft.Data.Entity.Utilities;
@@ -52,7 +54,7 @@ namespace Microsoft.Data.Entity.Scaffolding.Internal
             Check.NotEmpty(principalEndLambdaIdentifier, nameof(principalEndLambdaIdentifier));
 
             sb.Append(entityLambdaIdentifier);
-            sb.Append(".HasOne(");
+            sb.Append("." + nameof(EntityTypeBuilder<EntityType>.HasOne) + "(");
             sb.Append(dependentEndLambdaIdentifier);
             sb.Append(" => ");
             sb.Append(dependentEndLambdaIdentifier);
@@ -62,14 +64,10 @@ namespace Microsoft.Data.Entity.Scaffolding.Internal
 
             using (sb.Indent())
             {
-                if (rc.ForeignKey.IsUnique)
-                {
-                    sb.Append(".WithOne(");
-                }
-                else
-                {
-                    sb.Append(".WithMany(");
-                }
+                var withMethodName = rc.ForeignKey.IsUnique
+                    ? nameof(ReferenceNavigationBuilder<EntityType, EntityType>.WithOne)
+                    : nameof(ReferenceNavigationBuilder<EntityType, EntityType>.WithMany);
+                sb.Append("." + withMethodName + "(");
                 if (!string.IsNullOrEmpty(rc.PrincipalEndNavigationPropertyName))
                 {
                     sb.Append(principalEndLambdaIdentifier);
@@ -82,7 +80,10 @@ namespace Microsoft.Data.Entity.Scaffolding.Internal
 
                 if (!rc.ForeignKey.PrincipalKey.IsPrimaryKey())
                 {
-                    sb.Append(".HasPrincipalKey");
+                    var hasPrincipalKeyMethodName = rc.ForeignKey.IsUnique
+                        ? nameof(ReferenceReferenceBuilder<EntityType, EntityType>.HasPrincipalKey)
+                        : nameof(ReferenceReferenceBuilder.HasPrincipalKey);
+                    sb.Append("." + hasPrincipalKeyMethodName);
                     if (rc.ForeignKey.IsUnique)
                     {
                         // If the relationship is 1:1 need to define to which end
@@ -98,7 +99,10 @@ namespace Microsoft.Data.Entity.Scaffolding.Internal
                         .AppendLine(")");
                 }
 
-                sb.Append(".HasForeignKey");
+                var hasForeignKeyMethodName = rc.ForeignKey.IsUnique
+                    ? nameof(ReferenceReferenceBuilder<EntityType, EntityType>.HasForeignKey)
+                    : nameof(ReferenceCollectionBuilder.HasForeignKey);
+                sb.Append("." + hasForeignKeyMethodName);
                 if (rc.ForeignKey.IsUnique)
                 {
                     // If the relationship is 1:1 need to define to which end
@@ -121,8 +125,28 @@ namespace Microsoft.Data.Entity.Scaffolding.Internal
                 if (rc.OnDeleteAction != defaultOnDeleteAction)
                 {
                     sb.AppendLine();
-                    sb.Append(".OnDelete(");
+                    var onDeleteMethodName = rc.ForeignKey.IsUnique
+                        ? nameof(ReferenceReferenceBuilder.OnDelete)
+                        : nameof(ReferenceCollectionBuilder.OnDelete);
+                    sb.Append("." + onDeleteMethodName + "(");
                     sb.Append(CSharpUtilities.Instance.GenerateLiteral(rc.OnDeleteAction));
+                    sb.Append(")");
+                }
+
+                var foreignKey = rc.ForeignKey as ForeignKey;
+                if (foreignKey != null
+                    && foreignKey.Relational().Name !=
+                            RelationalForeignKeyAnnotations.GetDefaultForeignKeyName(
+                                foreignKey.DeclaringEntityType.Relational().TableName,
+                                foreignKey.PrincipalEntityType.Relational().TableName,
+                                foreignKey.Properties.Select(p => p.Name)))
+                {
+                    sb.AppendLine();
+                    var hasConstraintMethodName = foreignKey.IsUnique
+                        ? nameof(RelationalReferenceReferenceBuilderExtensions.HasConstraintName)
+                        : nameof(RelationalReferenceCollectionBuilderExtensions.HasConstraintName);
+                    sb.Append("." + hasConstraintMethodName + "(");
+                    sb.Append(CSharpUtilities.Instance.DelimitString(foreignKey.Relational().Name));
                     sb.Append(")");
                 }
 
@@ -146,7 +170,7 @@ namespace Microsoft.Data.Entity.Scaffolding.Internal
             foreach (var property in
                 entityType.GetProperties()
                     .Except(primaryKeyProperties)
-                    .OrderBy(p => p.Name))
+                    .OrderBy(p => p.Name, StringComparer.Ordinal))
             {
                 yield return property;
             }

@@ -29,6 +29,17 @@ namespace Microsoft.Data.Entity.Scaffolding
         private static string TableKey(string name, string schema = null) => "[" + (schema ?? "") + "].[" + name + "]";
         private static string ColumnKey(TableModel table, string columnName) => TableKey(table) + ".[" + columnName + "]";
 
+        // see https://msdn.microsoft.com/en-us/library/ff878091.aspx
+        private static readonly Dictionary<string, long[]> _defaultSequenceMinMax = new Dictionary<string, long[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "tinyint", new[] { 0L, 255L } },
+            { "smallint", new[] { -32768L, 32767L } },
+            { "int", new[] { -2147483648L, 2147483647L } },
+            { "bigint", new[] { -9223372036854775808L, 9223372036854775807L } },
+            { "decimal", new[] { -999999999999999999L, 999999999999999999L } },
+            { "numeric", new[] { -999999999999999999L, 999999999999999999L } }
+        };
+
         public SqlServerDatabaseModelFactory([NotNull] ILoggerFactory loggerFactory)
         {
             Check.NotNull(loggerFactory, nameof(loggerFactory));
@@ -63,11 +74,88 @@ namespace Microsoft.Data.Entity.Scaffolding
                  // TODO actually load per-user
                 _databaseModel.DefaultSchemaName = "dbo";
 
+                if (SupportsSequences)
+                {
+                    GetSequences();
+                }
+
                 GetTables();
                 GetColumns();
                 GetIndexes();
                 GetForeignKeys();
                 return _databaseModel;
+            }
+        }
+
+        private bool SupportsSequences
+        {
+            get
+            {
+                Version v;
+                if (Version.TryParse(_connection.ServerVersion, out v))
+                {
+                    return v.Major >= 11;
+                }
+                return false;
+            }
+        }
+
+        private void GetSequences()
+        {
+            var command = _connection.CreateCommand();
+            command.CommandText = @"SELECT name,
+                        is_cycling,
+                        CAST(minimum_value AS bigint) as [minimum_value],
+                        CAST(maximum_value AS bigint) as [maximum_value],
+                        CAST(start_value AS bigint) as [start_value],
+                        CAST(increment AS int) as [increment],
+                        TYPE_NAME(user_type_id) as [type_name],
+                        OBJECT_SCHEMA_NAME(object_id) AS [schema_name]
+                        FROM sys.sequences";
+
+            using (var reader = command.ExecuteReader())
+            {
+                var dboIdx = reader.GetOrdinal("schema_name");
+                var typeIdx = reader.GetOrdinal("type_name");
+                var nameIdx = reader.GetOrdinal("name");
+                var cycleIdx = reader.GetOrdinal("is_cycling");
+                var minIdx = reader.GetOrdinal("minimum_value");
+                var maxIdx = reader.GetOrdinal("maximum_value");
+                var startIdx = reader.GetOrdinal("start_value");
+                var incrIdx = reader.GetOrdinal("increment");
+
+                while (reader.Read())
+                {
+                    var sequence = new SequenceModel
+                    {
+                        SchemaName = reader.GetStringOrNull(dboIdx),
+                        Name = reader.GetStringOrNull(nameIdx),
+                        DataType = reader.GetStringOrNull(typeIdx),
+                        IsCyclic = reader.GetBoolean(cycleIdx),
+                        IncrementBy = reader.GetInt32(incrIdx),
+                        Start = reader.GetInt64(startIdx),
+                        Min = reader.GetInt64(minIdx),
+                        Max = reader.GetInt64(maxIdx)
+                    };
+
+                    if (string.IsNullOrEmpty(sequence.Name))
+                    {
+                        Logger.LogWarning(SqlServerDesignStrings.SequenceNameEmpty(sequence.SchemaName));
+                        continue;
+                    }
+
+                    if (_defaultSequenceMinMax.ContainsKey(sequence.DataType))
+                    {
+                        var defaultMin = _defaultSequenceMinMax[sequence.DataType][0];
+                        sequence.Min = sequence.Min == defaultMin ? null : sequence.Min;
+                        sequence.Start = sequence.Start == defaultMin ? null : sequence.Start;
+
+                        var defaultMax = _defaultSequenceMinMax[sequence.DataType][1];
+                        sequence.Max = sequence.Max == defaultMax ? null : sequence.Max;
+        }
+
+                    _databaseModel.Sequences.Add(sequence);
+                }
             }
         }
 
@@ -183,7 +271,7 @@ WHERE t.name <> '" + HistoryRepository.DefaultTableName + "'";
                     var isIdentity = !reader.IsDBNull(11) && reader.GetBoolean(11);
                     var isComputed = reader.GetBoolean(12) || dataTypeName == "timestamp";
 
-                    var column = new SqlServerColumnModel
+                    var column = new ColumnModel
                     {
                         Table = table,
                         DataType = dataTypeName,
@@ -194,14 +282,14 @@ WHERE t.name <> '" + HistoryRepository.DefaultTableName + "'";
                         DefaultValue = reader.IsDBNull(7) ? null : reader.GetString(7),
                         Precision = reader.IsDBNull(8) ? default(int?) : reader.GetInt32(8),
                         Scale = scale,
-                        DateTimePrecision = dateTimePrecision,
                         MaxLength = maxLength <= 0 ? default(int?) : maxLength,
-                        IsIdentity = isIdentity,
                         ValueGenerated = isIdentity ?
                             ValueGenerated.OnAdd :
                             isComputed ?
                                 ValueGenerated.OnAddOrUpdate : default(ValueGenerated?)
                     };
+                    column.SqlServer().IsIdentity = isIdentity;
+                    column.SqlServer().DateTimePrecision = dateTimePrecision;
 
                     table.Columns.Add(column);
                     _tableColumns.Add(ColumnKey(table, column.Name), column);
@@ -218,12 +306,12 @@ WHERE t.name <> '" + HistoryRepository.DefaultTableName + "'";
     i.name AS [index_name],
     i.is_unique,
     c.name AS [column_name],
-    i.type_desc
+    i.type_desc,
+    ic.key_ordinal
 FROM sys.indexes i
     INNER JOIN sys.index_columns ic  ON i.object_id = ic.object_id AND i.index_id = ic.index_id
     INNER JOIN sys.columns c ON ic.object_id = c.object_id AND c.column_id = ic.column_id
 WHERE object_schema_name(i.object_id) <> 'sys'
-    AND i.is_primary_key <> 1
     AND object_name(i.object_id) <> '" + HistoryRepository.DefaultTableName + @"'
 ORDER BY object_schema_name(i.object_id), object_name(i.object_id), i.name, ic.key_ordinal";
 
@@ -252,24 +340,27 @@ ORDER BY object_schema_name(i.object_id), object_name(i.object_id), i.name, ic.k
                         || index.Table.SchemaName != schemaName)
                     {
                         TableModel table;
-                        if(!_tables.TryGetValue(TableKey(tableName, schemaName), out table))
+                        if (!_tables.TryGetValue(TableKey(tableName, schemaName), out table))
                         {
                             Logger.LogWarning(
                                 SqlServerDesignStrings.UnableToFindTableForIndex(indexName, schemaName, tableName));
                             continue;
                         }
 
-                        index = new SqlServerIndexModel
+                        index = new IndexModel
                         {
                             Table = table,
                             Name = indexName,
                             IsUnique = reader.IsDBNull(3) ? false : reader.GetBoolean(3),
-                            IsClustered = reader.GetStringOrNull(5) == "CLUSTERED"
                         };
+                        index.SqlServer().IsClustered = reader.GetStringOrNull(5) == "CLUSTERED";
+
                         table.Indexes.Add(index);
                     }
 
                     var columnName = reader.GetStringOrNull(4);
+                    var indexOrdinal = reader.GetByte(6);
+
                     ColumnModel column = null;
                     if (string.IsNullOrEmpty(columnName))
                     {
@@ -285,7 +376,14 @@ ORDER BY object_schema_name(i.object_id), object_name(i.object_id), i.name, ic.k
                     }
                     else
                     {
-                        index.Columns.Add(column);
+                        var indexColumn = new IndexColumnModel
+                        {
+                            Index = index,
+                            Column = column,
+                            Ordinal = indexOrdinal
+                        };
+
+                        index.IndexColumns.Add(indexColumn);
                     }
                 }
             }
@@ -304,10 +402,11 @@ ORDER BY object_schema_name(i.object_id), object_name(i.object_id), i.name, ic.k
     col_name(fc.referenced_object_id, fc.referenced_column_id) AS referenced_column_name,
     is_disabled,
     delete_referential_action_desc,
-    update_referential_action_desc
+    update_referential_action_desc,
+    fc.constraint_column_id
 FROM sys.foreign_keys AS f
     INNER JOIN sys.foreign_key_columns AS fc ON f.object_id = fc.constraint_object_id
-ORDER BY schema_name(f.schema_id), object_name(f.parent_object_id), f.name, fc.constraint_column_id";
+ORDER BY schema_name(f.schema_id), object_name(f.parent_object_id), f.name";
             using (var reader = command.ExecuteReader())
             {
                 var lastFkName = string.Empty;
@@ -321,6 +420,7 @@ ORDER BY schema_name(f.schema_id), object_name(f.parent_object_id), f.name, fc.c
                     var fkName = reader.GetStringOrNull(2);
                     if (string.IsNullOrEmpty(fkName))
                     {
+                        Logger.LogWarning(SqlServerDesignStrings.ForeignKeyNameEmpty(schemaName, tableName));
                         continue;
                     }
 
@@ -352,17 +452,23 @@ ORDER BY schema_name(f.schema_id), object_name(f.parent_object_id), f.name, fc.c
                             Name = fkName,
                             Table = table,
                             PrincipalTable = principalTable,
-                            PrincipalTableName = principalSchemaTableName + "." + principalTableName
+                            PrincipalTableName = principalSchemaTableName + "." + principalTableName,
+                            OnDelete = ConvertToReferentialAction(reader.GetStringOrNull(8))
                         };
 
                         table.ForeignKeys.Add(fkInfo);
                     }
 
+                    var fkColumn = new ForeignKeyColumnModel
+                    {
+                        Ordinal = reader.GetInt32(10)
+                    };
+
                     var fromColumnName = reader.GetStringOrNull(5);
                     ColumnModel fromColumn;
                     if ((fromColumn = FindColumnForForeignKey(fromColumnName, fkInfo.Table, fkName)) != null)
                     {
-                        fkInfo.Columns.Add(fromColumn);
+                        fkColumn.Column = fromColumn;
                     }
 
                     if (fkInfo.PrincipalTable != null)
@@ -371,11 +477,11 @@ ORDER BY schema_name(f.schema_id), object_name(f.parent_object_id), f.name, fc.c
                         ColumnModel toColumn;
                         if ((toColumn = FindColumnForForeignKey(toColumnName, fkInfo.PrincipalTable, fkName)) != null)
                         {
-                            fkInfo.PrincipalColumns.Add(toColumn);
+                            fkColumn.PrincipalColumn = toColumn;
                         }
                     }
 
-                    fkInfo.OnDelete = ConvertToReferentialAction(reader.GetStringOrNull(8));
+                    fkInfo.Columns.Add(fkColumn);
                 }
             }
         }
@@ -391,7 +497,7 @@ ORDER BY schema_name(f.schema_id), object_name(f.parent_object_id), f.name, fc.c
                         table.SchemaName, table.Name, fkName));
                 return null;
             }
-            else if (!_tableColumns.TryGetValue(
+            if (!_tableColumns.TryGetValue(
                 ColumnKey(table, columnName), out column))
             {
                 Logger.LogWarning(
@@ -399,11 +505,8 @@ ORDER BY schema_name(f.schema_id), object_name(f.parent_object_id), f.name, fc.c
                         fkName, columnName, table.SchemaName, table.Name));
                 return null;
             }
-            else
-            {
                 return column;
             }
-        }
 
         private static ReferentialAction? ConvertToReferentialAction(string onDeleteAction)
         {

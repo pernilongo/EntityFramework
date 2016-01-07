@@ -6,10 +6,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using Microsoft.Data.Entity.FunctionalTests.TestModels.Northwind;
-using Microsoft.Data.Entity.Query;
+using Microsoft.Data.Entity.FunctionalTests.TestUtilities.Xunit;
+using Microsoft.Data.Entity.Infrastructure;
+using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Query.Internal;
 using Microsoft.Data.Entity.Tests;
-using Microsoft.Data.Entity.FunctionalTests.TestUtilities.Xunit;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 // ReSharper disable ReplaceWithSingleCallToCount
 // ReSharper disable StringStartsWithIsCultureSpecific
@@ -1428,6 +1430,31 @@ namespace Microsoft.Data.Entity.FunctionalTests
 
             AssertQuery<Customer>(
                 cs => cs.Where(c => c.Equals(customer)).Select(c => c.CustomerID));
+        }
+
+        [ConditionalFact]
+        public virtual void Where_concat_string_int_comparison1()
+        {
+            int i = 10;
+            AssertQuery<Customer>(
+                cs => cs.Where(c => c.CustomerID + i == c.CompanyName).Select(c => c.CustomerID));
+        }
+
+        [ConditionalFact]
+        public virtual void Where_concat_string_int_comparison2()
+        {
+            int i = 10;
+            AssertQuery<Customer>(
+                cs => cs.Where(c => i + c.CustomerID == c.CompanyName).Select(c => c.CustomerID));
+        }
+
+        [ConditionalFact]
+        public virtual void Where_concat_string_int_comparison3()
+        {
+            var i = 10;
+            var j = 21;
+            AssertQuery<Customer>(
+                cs => cs.Where(c => i + 20 + c.CustomerID + j + 42 == c.CompanyName).Select(c => c.CustomerID));
         }
 
         [ConditionalFact]
@@ -4203,6 +4230,41 @@ namespace Microsoft.Data.Entity.FunctionalTests
         }
 
         [ConditionalFact]
+        public virtual void Substring_with_constant()
+        {
+            using (var context = CreateContext())
+            {
+                Assert.Equal(
+                    "ari",
+                    context.Set<Customer>().Select(c => c.ContactName.Substring(1, 3)).First());
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Substring_with_closure()
+        {
+            var start = 2;
+
+            using (var context = CreateContext())
+            {
+                Assert.Equal(
+                    "ria",
+                    context.Set<Customer>().Select(c => c.ContactName.Substring(start, 3)).First());
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Substring_with_client_eval()
+        {
+            using (var context = CreateContext())
+            {
+                Assert.Equal(
+                    "ari",
+                    context.Set<Customer>().Select(c => c.ContactName.Substring(c.ContactName.IndexOf('a'), 3)).First());
+            }
+        }
+
+        [ConditionalFact]
         public virtual void Where_chain()
         {
             AssertQuery<Order>(order => order
@@ -4210,6 +4272,37 @@ namespace Microsoft.Data.Entity.FunctionalTests
                 .Where(o => o.OrderDate > new DateTime(1998, 1, 1)), entryCount: 8);
         }
 
+        [ConditionalFact]
+        public virtual void OfType_Select()
+        {
+            using (var context = CreateContext())
+            {
+                Assert.Equal(
+                    "Reims",
+                    context.Set<Order>()
+                        .OfType<Order>()
+                        .OrderBy(o => o.OrderID)
+                        .Select(o => o.Customer.City)
+                        .First());
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void OfType_Select_OfType_Select()
+        {
+            using (var context = CreateContext())
+            {
+                Assert.Equal(
+                    "Reims",
+                    context.Set<Order>()
+                        .OfType<Order>()
+                        .Select(o => o)
+                        .OfType<Order>()
+                        .OrderBy(o => o.OrderID)
+                        .Select(o => o.Customer.City)
+                        .First());
+            }
+        }
 
         [ConditionalFact]
         public virtual void OrderBy_null_coalesce_operator()
@@ -4261,14 +4354,29 @@ namespace Microsoft.Data.Entity.FunctionalTests
         public virtual void Select_take_null_coalesce_operator()
         {
             AssertQuery<Customer>(
-            cs => cs.Select(c => new { c.CustomerID, c.CompanyName, Region = c.Region ?? "ZZ" }).OrderBy(c => c.Region).Take(5));
+                cs => cs.Select(c => new { c.CustomerID, c.CompanyName, Region = c.Region ?? "ZZ" }).OrderBy(c => c.Region).Take(5));
         }
 
         [ConditionalFact]
         public virtual void Select_take_skip_null_coalesce_operator()
         {
             AssertQuery<Customer>(
-            cs => cs.Select(c => new { c.CustomerID, c.CompanyName, Region = c.Region ?? "ZZ" }).OrderBy(c => c.Region).Take(10).Skip(5));
+                cs => cs.Select(c => new { c.CustomerID, c.CompanyName, Region = c.Region ?? "ZZ" }).OrderBy(c => c.Region).Take(10).Skip(5));
+        }
+
+        [ConditionalFact]
+        public virtual void Select_take_skip_null_coalesce_operator2()
+        {
+            AssertQuery<Customer>(
+                cs => cs.Select(c => new { c.CustomerID, c.CompanyName, c.Region }).OrderBy(c => c.Region ?? "ZZ").Take(10).Skip(5));
+        }
+
+        [ConditionalFact]
+        public virtual void Select_take_skip_null_coalesce_operator3()
+        {
+            AssertQuery<Customer>(
+                cs => cs.OrderBy(c => c.Region ?? "ZZ").Take(10).Skip(5), 
+                entryCount: 5);
         }
 
         [ConditionalFact]
@@ -4411,6 +4519,34 @@ namespace Microsoft.Data.Entity.FunctionalTests
                         .ToList();
 
                 Assert.Equal(2, orderDetails.Count);
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Throws_on_concurrent_query_list()
+        {
+            using (var context = CreateContext())
+            {
+                ((IInfrastructure<IServiceProvider>)context).Instance.GetService<IConcurrencyDetector>().EnterCriticalSection();
+
+                Assert.Equal(
+                    CoreStrings.ConcurrentMethodInvocation,
+                    Assert.Throws<NotSupportedException>(
+                    () => context.Customers.ToList()).Message);
+            }
+        }
+
+        [ConditionalFact]
+        public virtual void Throws_on_concurrent_query_first()
+        {
+            using (var context = CreateContext())
+            {
+                ((IInfrastructure<IServiceProvider>)context).Instance.GetService<IConcurrencyDetector>().EnterCriticalSection();
+
+                Assert.Equal(
+                    CoreStrings.ConcurrentMethodInvocation,
+                    Assert.Throws<NotSupportedException>(
+                        () => context.Customers.First()).Message);
             }
         }
 

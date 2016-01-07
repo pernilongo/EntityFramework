@@ -17,9 +17,8 @@
     "Microsoft.Extensions.DependencyInjection.Abstractions": "1.0.0-*",
     "Microsoft.Extensions.Logging": "1.0.0-*",
     "Microsoft.Extensions.Logging.Abstractions": "1.0.0-*",
-    "Microsoft.Extensions.OptionsModel": "1.0.0-*",
-    "Remotion.Linq": "2.0.1",
-    "System.Collections.Immutable": "1.1.36"
+    "Microsoft.Extensions.Options": "1.0.0-*",
+    "Remotion.Linq": "2.0.1"
   },
   "compile": "..\\Shared\\*.cs",
   "namedResource": {
@@ -80,7 +79,6 @@
         "System.Reflection.Extensions": "4.0.1-*",
         "System.Reflection.TypeExtensions": "4.1.0-*",
         "System.Resources.ResourceManager": "4.0.1-*",
-        "System.Runtime": "4.0.21-*",
         "System.Runtime.Extensions": "4.0.11-*",
         "System.Runtime.InteropServices": "4.0.21-*",
         "System.Threading": "4.0.11-*",
@@ -102,7 +100,6 @@
         "System.Reflection.Extensions": "4.0.0",
         "System.Reflection.TypeExtensions": "4.0.0",
         "System.Resources.ResourceManager": "4.0.0",
-        "System.Runtime": "4.0.20",
         "System.Runtime.Extensions": "4.0.10",
         "System.Threading": "4.0.10",
         "System.Threading.Tasks": "4.0.10"

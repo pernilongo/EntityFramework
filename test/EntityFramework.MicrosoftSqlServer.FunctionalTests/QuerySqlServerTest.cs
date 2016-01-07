@@ -2925,6 +2925,46 @@ WHERE 1 = 0",
                 Sql);
         }
 
+        public override void Where_concat_string_int_comparison1()
+        {
+            base.Where_concat_string_int_comparison1();
+
+            Assert.Equal(
+                @"@__i_0: 10
+
+SELECT [c].[CustomerID]
+FROM [Customers] AS [c]
+WHERE ([c].[CustomerID] + CAST(@__i_0 AS nvarchar(max))) = [c].[CompanyName]",
+                Sql);
+        }
+
+        public override void Where_concat_string_int_comparison2()
+        {
+            base.Where_concat_string_int_comparison2();
+
+            Assert.Equal(
+                @"@__i_0: 10
+
+SELECT [c].[CustomerID]
+FROM [Customers] AS [c]
+WHERE (CAST(@__i_0 AS nvarchar(max)) + [c].[CustomerID]) = [c].[CompanyName]",
+                Sql);
+        }
+
+        public override void Where_concat_string_int_comparison3()
+        {
+            base.Where_concat_string_int_comparison3();
+
+            Assert.Equal(
+    @"@__i_0: 10
+@__j_1: 21
+
+SELECT [c].[CustomerID]
+FROM [Customers] AS [c]
+WHERE (((CAST(@__i_0 + 20 AS nvarchar(max)) + [c].[CustomerID]) + CAST(@__j_1 AS nvarchar(max))) + CAST(42 AS nvarchar(max))) = [c].[CompanyName]",
+                Sql);
+        }
+
         public override void Where_primitive()
         {
             base.Where_primitive();
@@ -4074,6 +4114,39 @@ WHERE ([o].[CustomerID] = 'QUICK') AND ([o].[OrderDate] > '1998-01-01T00:00:00.0
                 Sql);
         }
 
+        public override void OfType_Select()
+        {
+            base.OfType_Select();
+
+            Assert.Equal(
+                @"SELECT TOP(1) [o.Customer].[City]
+FROM (
+    SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
+    FROM [Orders] AS [o]
+) AS [t0]
+INNER JOIN [Customers] AS [o.Customer] ON [t0].[CustomerID] = [o.Customer].[CustomerID]
+ORDER BY [t0].[OrderID]",
+                Sql);
+        }
+
+        public override void OfType_Select_OfType_Select()
+        {
+            base.OfType_Select_OfType_Select();
+
+            Assert.Equal(
+                @"SELECT TOP(1) [o.Customer].[City]
+FROM (
+    SELECT [t0].[OrderID], [t0].[CustomerID], [t0].[EmployeeID], [t0].[OrderDate]
+    FROM (
+        SELECT [o].[OrderID], [o].[CustomerID], [o].[EmployeeID], [o].[OrderDate]
+        FROM [Orders] AS [o]
+    ) AS [t0]
+) AS [t1]
+INNER JOIN [Customers] AS [o.Customer] ON [t1].[CustomerID] = [o.Customer].[CustomerID]
+ORDER BY [t1].[OrderID]",
+                Sql);
+        }
+
         public override void OrderBy_null_coalesce_operator()
         {
             base.OrderBy_null_coalesce_operator();
@@ -4279,6 +4352,38 @@ WHERE 1 = 1",
                 Sql);
         }
 
+        public override void Substring_with_constant()
+        {
+            base.Substring_with_constant();
+
+            Assert.Equal(
+                @"SELECT TOP(1) SUBSTRING([c].[ContactName], 2, 3)
+FROM [Customers] AS [c]",
+                Sql);
+        }
+
+        public override void Substring_with_closure()
+        {
+            base.Substring_with_closure();
+
+            Assert.Equal(
+                @"@__start_0: 2
+
+SELECT TOP(1) SUBSTRING([c].[ContactName], @__start_0 + 1, 3)
+FROM [Customers] AS [c]",
+                Sql);
+        }
+
+        public override void Substring_with_client_eval()
+        {
+            base.Substring_with_client_eval();
+
+            Assert.Equal(
+                @"SELECT TOP(1) [c].[ContactName]
+FROM [Customers] AS [c]",
+                Sql);
+        }
+
         public override void Projection_null_coalesce_operator()
         {
             base.Projection_null_coalesce_operator();
@@ -4352,6 +4457,48 @@ FROM (
     ORDER BY [Coalesce]
 ) AS [t0]
 ORDER BY [Coalesce]
+OFFSET @__p_1 ROWS",
+                Sql);
+        }
+
+        [ConditionalFact]
+        [SqlServerCondition(SqlServerCondition.SupportsOffset)]
+        public override void Select_take_skip_null_coalesce_operator2()
+        {
+            base.Select_take_skip_null_coalesce_operator2();
+
+            Assert.Equal(
+                @"@__p_0: 10
+@__p_1: 5
+
+SELECT [t0].*
+FROM (
+    SELECT TOP(@__p_0) [c].[CustomerID], [c].[CompanyName], [c].[Region]
+    FROM [Customers] AS [c]
+    ORDER BY COALESCE([c].[Region], 'ZZ')
+) AS [t0]
+ORDER BY COALESCE([t0].[Region], 'ZZ')
+OFFSET @__p_1 ROWS",
+                Sql);
+        }
+
+        [ConditionalFact]
+        [SqlServerCondition(SqlServerCondition.SupportsOffset)]
+        public override void Select_take_skip_null_coalesce_operator3()
+        {
+            base.Select_take_skip_null_coalesce_operator3();
+
+            Assert.Equal(
+                @"@__p_0: 10
+@__p_1: 5
+
+SELECT [t0].*
+FROM (
+    SELECT TOP(@__p_0) [c].[CustomerID], [c].[Address], [c].[City], [c].[CompanyName], [c].[ContactName], [c].[ContactTitle], [c].[Country], [c].[Fax], [c].[Phone], [c].[PostalCode], [c].[Region]
+    FROM [Customers] AS [c]
+    ORDER BY COALESCE([c].[Region], 'ZZ')
+) AS [t0]
+ORDER BY COALESCE([t0].[Region], 'ZZ')
 OFFSET @__p_1 ROWS",
                 Sql);
         }

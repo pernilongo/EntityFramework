@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Data.Entity.FunctionalTests.TestUtilities.Xunit;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Migrations;
 using Microsoft.Data.Entity.Scaffolding;
@@ -22,9 +23,9 @@ namespace Microsoft.Data.Entity.SqlServer.Design.FunctionalTests
             var sql = @"
 CREATE TABLE [dbo].[Everest] ( id int );
 CREATE TABLE [dbo].[Denali] ( id int );";
-            var dbInfo = CreateModel(sql, new TableSelectionSet(new List<string> { "Everest", "Denali" }));
+            var dbModel = CreateModel(sql, new TableSelectionSet(new List<string> { "Everest", "Denali" }));
 
-            Assert.Collection(dbInfo.Tables.OrderBy(t => t.Name),
+            Assert.Collection(dbModel.Tables.OrderBy(t => t.Name),
                 d =>
                     {
                         Assert.Equal("dbo", d.SchemaName);
@@ -43,16 +44,16 @@ CREATE TABLE [dbo].[Denali] ( id int );";
             _fixture.ExecuteNonQuery("CREATE SCHEMA db2");
             var sql = "CREATE TABLE dbo.Ranges ( Id INT IDENTITY (1,1) PRIMARY KEY);" +
                       "CREATE TABLE db2.Mountains ( RangeId INT NOT NULL, FOREIGN KEY (RangeId) REFERENCES Ranges(Id) ON DELETE CASCADE)";
-            var dbInfo = CreateModel(sql, new TableSelectionSet(new List<string> { "Ranges", "Mountains" }));
+            var dbModel = CreateModel(sql, new TableSelectionSet(new List<string> { "Ranges", "Mountains" }));
 
-            var fk = Assert.Single(dbInfo.Tables.Single(t => t.ForeignKeys.Count > 0).ForeignKeys);
+            var fk = Assert.Single(dbModel.Tables.Single(t => t.ForeignKeys.Count > 0).ForeignKeys);
 
             Assert.Equal("db2", fk.Table.SchemaName);
             Assert.Equal("Mountains", fk.Table.Name);
             Assert.Equal("dbo", fk.PrincipalTable.SchemaName);
             Assert.Equal("Ranges", fk.PrincipalTable.Name);
-            Assert.Equal("RangeId", fk.Columns.Single().Name);
-            Assert.Equal("Id", fk.PrincipalColumns.Single().Name);
+            Assert.Equal("RangeId", fk.Columns.Single().Column.Name);
+            Assert.Equal("Id", fk.Columns.Single().PrincipalColumn.Name);
             Assert.Equal(ReferentialAction.Cascade, fk.OnDelete);
         }
 
@@ -62,28 +63,28 @@ CREATE TABLE [dbo].[Denali] ( id int );";
             _fixture.ExecuteNonQuery("CREATE SCHEMA db3");
             var sql = "CREATE TABLE dbo.Ranges1 ( Id INT IDENTITY (1,1), AltId INT, PRIMARY KEY(Id, AltId));" +
                       "CREATE TABLE db3.Mountains1 ( RangeId INT NOT NULL, RangeAltId INT NOT NULL, FOREIGN KEY (RangeId, RangeAltId) REFERENCES Ranges1(Id, AltId) ON DELETE NO ACTION)";
-            var dbInfo = CreateModel(sql, new TableSelectionSet(new List<string> { "Ranges1", "Mountains1" }));
+            var dbModel = CreateModel(sql, new TableSelectionSet(new List<string> { "Ranges1", "Mountains1" }));
 
-            var fk = Assert.Single(dbInfo.Tables.Single(t => t.ForeignKeys.Count > 0).ForeignKeys);
+            var fk = Assert.Single(dbModel.Tables.Single(t => t.ForeignKeys.Count > 0).ForeignKeys);
 
             Assert.Equal("db3", fk.Table.SchemaName);
             Assert.Equal("Mountains1", fk.Table.Name);
             Assert.Equal("dbo", fk.PrincipalTable.SchemaName);
             Assert.Equal("Ranges1", fk.PrincipalTable.Name);
-            Assert.Equal(new[] { "RangeId", "RangeAltId" }, fk.Columns.Select(c => c.Name).ToArray());
-            Assert.Equal(new[] { "Id", "AltId" }, fk.PrincipalColumns.Select(c => c.Name).ToArray());
+            Assert.Equal(new[] { "RangeId", "RangeAltId" }, fk.Columns.Select(c => c.Column.Name).ToArray());
+            Assert.Equal(new[] { "Id", "AltId" }, fk.Columns.Select(c => c.PrincipalColumn.Name).ToArray());
             Assert.Equal(ReferentialAction.NoAction, fk.OnDelete);
         }
 
         [Fact]
         public void It_reads_indexes()
         {
-            var sql = "CREATE TABLE Place ( Id int PRIMARY KEY NONCLUSTERED, Name int UNIQUE, Location int );" +
+            var sql = "CREATE TABLE Place ( Id int PRIMARY KEY NONCLUSTERED, Name int UNIQUE, Location int);" +
                       "CREATE CLUSTERED INDEX IX_Location_Name ON Place (Location, Name);" +
                       "CREATE NONCLUSTERED INDEX IX_Location ON Place (Location);";
-            var dbInfo = CreateModel(sql, new TableSelectionSet(new List<string> { "Place" }));
+            var dbModel = CreateModel(sql, new TableSelectionSet(new List<string> { "Place" }));
 
-            var indexes = dbInfo.Tables.Single().Indexes;
+            var indexes = dbModel.Tables.Single().Indexes;
 
             Assert.All(indexes, c =>
                 {
@@ -91,24 +92,32 @@ CREATE TABLE [dbo].[Denali] ( id int );";
                     Assert.Equal("Place", c.Table.Name);
                 });
 
-            Assert.Collection(indexes.OfType<SqlServerIndexModel>(),
+            Assert.Collection(indexes.OrderBy(i => i.Name),
                 nonClustered =>
                     {
                         Assert.Equal("IX_Location", nonClustered.Name);
-                        Assert.False(nonClustered.IsClustered);
-                        Assert.Equal("Location", nonClustered.Columns.Select(c => c.Name).Single());
+                        Assert.False(nonClustered.SqlServer().IsClustered);
+                        Assert.Equal("Location", nonClustered.IndexColumns.Select(ic => ic.Column.Name).Single());
                     },
                 clusteredIndex =>
                     {
                         Assert.Equal("IX_Location_Name", clusteredIndex.Name);
                         Assert.False(clusteredIndex.IsUnique);
-                        Assert.True(clusteredIndex.IsClustered);
-                        Assert.Equal(new List<string> { "Location", "Name" }, clusteredIndex.Columns.Select(c => c.Name).ToList());
+                        Assert.True(clusteredIndex.SqlServer().IsClustered);
+                        Assert.Equal(new List<string> { "Location", "Name" }, clusteredIndex.IndexColumns.Select(ic => ic.Column.Name).ToList());
+                        Assert.Equal(new List<int> { 1, 2 }, clusteredIndex.IndexColumns.Select(ic => ic.Ordinal).ToList());
                     },
+                pkIndex =>
+                {
+                    Assert.StartsWith("PK__Place", pkIndex.Name);
+                    Assert.True(pkIndex.IsUnique);
+                    Assert.False(pkIndex.SqlServer().IsClustered);
+                    Assert.Equal(new List<string> { "Id" }, pkIndex.IndexColumns.Select(ic => ic.Column.Name).ToList());
+                },
                 unique =>
                     {
                         Assert.True(unique.IsUnique);
-                        Assert.Equal("Name", unique.Columns.Single().Name);
+                        Assert.Equal("Name", unique.IndexColumns.Single().Column.Name);
                     });
         }
 
@@ -126,9 +135,9 @@ CREATE TABLE [dbo].[MountainsColumns] (
     Modified rowversion,
     Primary Key (Name, Id)
 );";
-            var dbInfo = CreateModel(sql, new TableSelectionSet(new List<string> { "MountainsColumns" }));
+            var dbModel = CreateModel(sql, new TableSelectionSet(new List<string> { "MountainsColumns" }));
 
-            var columns = dbInfo.Tables.Single().Columns.OrderBy(c => c.Ordinal);
+            var columns = dbModel.Tables.Single().Columns.OrderBy(c => c.Ordinal);
 
             Assert.All(columns, c =>
                 {
@@ -136,7 +145,7 @@ CREATE TABLE [dbo].[MountainsColumns] (
                     Assert.Equal("MountainsColumns", c.Table.Name);
                 });
 
-            Assert.Collection(columns.OfType<SqlServerColumnModel>(),
+            Assert.Collection(columns,
                 id =>
                     {
                         Assert.Equal("Id", id.Name);
@@ -167,18 +176,19 @@ CREATE TABLE [dbo].[MountainsColumns] (
                         Assert.Equal(5, lat.Precision);
                         Assert.Equal(2, lat.Scale);
                         Assert.Null(lat.MaxLength);
+                        Assert.Null(lat.SqlServer().DateTimePrecision);
                     },
                 created =>
                     {
                         Assert.Equal("Created", created.Name);
                         Assert.Null(created.Scale);
-                        Assert.Equal(6, created.DateTimePrecision);
+                        Assert.Equal(6, created.SqlServer().DateTimePrecision);
                         Assert.Equal("('October 20, 2015 11am')", created.DefaultValue);
                     },
                 discovered =>
                      {
                          Assert.Equal("DiscoveredDate", discovered.Name);
-                         Assert.Equal(7, discovered.DateTimePrecision);
+                         Assert.Equal(7, discovered.SqlServer().DateTimePrecision);
                      },
                 sum =>
                     {
@@ -214,14 +224,14 @@ CREATE TABLE [dbo].[MountainsColumns] (
         [InlineData(false)]
         public void It_reads_identity(bool isIdentity)
         {
-            var dbInfo = CreateModel(
+            var dbModel = CreateModel(
                 @"IF OBJECT_ID('dbo.Identities', 'U') IS NOT NULL 
     DROP TABLE [dbo].[Identities];
 CREATE TABLE [dbo].[Identities] ( Id INT " + (isIdentity ? "IDENTITY(1,1)" : "") + ")",
                 new TableSelectionSet(new List<string> { "Identities" }));
 
-            var column = Assert.IsType<SqlServerColumnModel>(Assert.Single(dbInfo.Tables.Single().Columns));
-            Assert.Equal(isIdentity, column.IsIdentity);
+            var column = Assert.Single(dbModel.Tables.Single().Columns);
+            Assert.Equal(isIdentity, column.SqlServer().IsIdentity);
             Assert.Equal(isIdentity ? ValueGenerated.OnAdd : default(ValueGenerated?), column.ValueGenerated);
         }
 
@@ -231,14 +241,77 @@ CREATE TABLE [dbo].[Identities] ( Id INT " + (isIdentity ? "IDENTITY(1,1)" : "")
             var sql = @"CREATE TABLE [dbo].[K2] ( Id int, A varchar, UNIQUE (A ) );
 CREATE TABLE [dbo].[Kilimanjaro] ( Id int, B varchar, UNIQUE (B), FOREIGN KEY (B) REFERENCES K2 (A) );";
 
-            var selectionSet = new TableSelectionSet(new List<string>{ "K2" });
+            var selectionSet = new TableSelectionSet(new List<string> { "K2" });
 
-            var dbInfo = CreateModel(sql, selectionSet);
-            var table = Assert.Single(dbInfo.Tables);
+            var dbModel = CreateModel(sql, selectionSet);
+            var table = Assert.Single(dbModel.Tables);
             Assert.Equal("K2", table.Name);
             Assert.Equal(2, table.Columns.Count);
             Assert.Equal(1, table.Indexes.Count);
             Assert.Empty(table.ForeignKeys);
+        }
+
+        [ConditionalFact]
+        [SqlServerCondition(SqlServerCondition.SupportsSequences)]
+        public void It_reads_sequences()
+        {
+            var sql = @"CREATE SEQUENCE DefaultValues_read;
+ 
+CREATE SEQUENCE CustomSequence_read
+    AS numeric
+    START WITH 1 
+    INCREMENT BY 2 
+    MAXVALUE 8 
+    MINVALUE -3 
+    CYCLE;";
+
+            var dbModel = CreateModel(sql);
+            Assert.Collection(dbModel.Sequences.Where(s => s.Name.EndsWith("_read")).OrderBy(s => s.Name),
+                c =>
+                    {
+                        Assert.Equal(c.Name, "CustomSequence_read");
+                        Assert.Equal(c.SchemaName, "dbo");
+                        Assert.Equal(c.DataType, "numeric");
+                        Assert.Equal(1, c.Start);
+                        Assert.Equal(2, c.IncrementBy);
+                        Assert.Equal(8, c.Max);
+                        Assert.Equal(-3, c.Min);
+                        Assert.True(c.IsCyclic);
+                    },
+                d =>
+                    {
+                        Assert.Equal(d.Name, "DefaultValues_read");
+                        Assert.Equal(d.SchemaName, "dbo");
+                        Assert.Equal(d.DataType, "bigint");
+                        Assert.Equal(1, d.IncrementBy);
+                        Assert.False(d.IsCyclic);
+                        Assert.Null(d.Max);
+                        Assert.Null(d.Min);
+                        Assert.Null(d.Start);
+                    });
+        }
+
+        [ConditionalFact]
+        [SqlServerCondition(SqlServerCondition.SupportsSequences)]
+        public void SequenceModel_values_null_for_default_min_max_start()
+        {
+            var sql = @"CREATE SEQUENCE [TinyIntSequence_defaults]
+    AS tinyint;
+CREATE SEQUENCE [SmallIntSequence_defaults]
+    AS smallint;
+CREATE SEQUENCE [IntSequence_defaults]
+    AS int;
+CREATE SEQUENCE [DecimalSequence_defaults]
+    AS decimal;
+CREATE SEQUENCE [NumericSequence_defaults]
+    AS numeric;";
+            var dbModel = CreateModel(sql);
+            Assert.All(dbModel.Sequences.Where(s => s.Name.EndsWith("_defaults")), s =>
+                {
+                    Assert.Null(s.Start);
+                    Assert.Null(s.Min);
+                    Assert.Null(s.Max);
+                });
         }
 
         private readonly SqlServerDatabaseModelFixture _fixture;

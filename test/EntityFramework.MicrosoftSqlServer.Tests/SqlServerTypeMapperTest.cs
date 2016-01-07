@@ -213,8 +213,8 @@ namespace Microsoft.Data.Entity.SqlServer.Tests
         public void Does_key_SQL_Server_string_mapping()
         {
             var property = CreateEntityType().AddProperty("MyProp", typeof(string));
-            property.DeclaringEntityType.SetPrimaryKey(property);
             property.IsNullable = false;
+            property.DeclaringEntityType.SetPrimaryKey(property);
 
             var typeMapping = new SqlServerTypeMapper().GetMapping(property);
 
@@ -227,6 +227,7 @@ namespace Microsoft.Data.Entity.SqlServer.Tests
         public void Does_foreign_key_SQL_Server_string_mapping()
         {
             var property = CreateEntityType().AddProperty("MyProp", typeof(string));
+            property.IsNullable = false;
             var fkProperty = property.DeclaringEntityType.AddProperty("FK", typeof(string));
             var pk = property.DeclaringEntityType.SetPrimaryKey(property);
             property.DeclaringEntityType.AddForeignKey(fkProperty, pk, property.DeclaringEntityType);
@@ -242,12 +243,27 @@ namespace Microsoft.Data.Entity.SqlServer.Tests
         public void Does_required_foreign_key_SQL_Server_string_mapping()
         {
             var property = CreateEntityType().AddProperty("MyProp", typeof(string));
+            property.IsNullable = false;
             var fkProperty = property.DeclaringEntityType.AddProperty("FK", typeof(string));
             var pk = property.DeclaringEntityType.SetPrimaryKey(property);
             property.DeclaringEntityType.AddForeignKey(fkProperty, pk, property.DeclaringEntityType);
             fkProperty.IsNullable = false;
 
             var typeMapping = new SqlServerTypeMapper().GetMapping(fkProperty);
+
+            Assert.Null(typeMapping.StoreType);
+            Assert.Equal("nvarchar(450)", typeMapping.DefaultTypeName);
+            Assert.Equal(4000, typeMapping.CreateParameter(new TestCommand(), "Name", "Value").Size);
+        }
+
+        [Fact]
+        public void Does_indexed_column_SQL_Server_string_mapping()
+        {
+            var entityType = CreateEntityType();
+            var property = entityType.AddProperty("MyProp", typeof(string));
+            entityType.AddIndex(property);
+
+            var typeMapping = new SqlServerTypeMapper().GetMapping(property);
 
             Assert.Null(typeMapping.StoreType);
             Assert.Equal("nvarchar(450)", typeMapping.DefaultTypeName);
@@ -308,8 +324,8 @@ namespace Microsoft.Data.Entity.SqlServer.Tests
         public void Does_key_SQL_Server_binary_mapping()
         {
             var property = CreateEntityType().AddProperty("MyProp", typeof(byte[]));
-            property.DeclaringEntityType.SetPrimaryKey(property);
             property.IsNullable = false;
+            property.DeclaringEntityType.SetPrimaryKey(property);
 
             var typeMapping = new SqlServerTypeMapper().GetMapping(property);
 
@@ -322,6 +338,7 @@ namespace Microsoft.Data.Entity.SqlServer.Tests
         public void Does_foreign_key_SQL_Server_binary_mapping()
         {
             var property = CreateEntityType().AddProperty("MyProp", typeof(byte[]));
+            property.IsNullable = false;
             var fkProperty = property.DeclaringEntityType.AddProperty("FK", typeof(byte[]));
             var pk = property.DeclaringEntityType.SetPrimaryKey(property);
             property.DeclaringEntityType.AddForeignKey(fkProperty, pk, property.DeclaringEntityType);
@@ -337,6 +354,7 @@ namespace Microsoft.Data.Entity.SqlServer.Tests
         public void Does_required_foreign_key_SQL_Server_binary_mapping()
         {
             var property = CreateEntityType().AddProperty("MyProp", typeof(byte[]));
+            property.IsNullable = false;
             var fkProperty = property.DeclaringEntityType.AddProperty("FK", typeof(byte[]));
             var pk = property.DeclaringEntityType.SetPrimaryKey(property);
             property.DeclaringEntityType.AddForeignKey(fkProperty, pk, property.DeclaringEntityType);
@@ -348,6 +366,22 @@ namespace Microsoft.Data.Entity.SqlServer.Tests
             Assert.Equal("varbinary(900)", typeMapping.DefaultTypeName);
             Assert.Equal(8000, typeMapping.CreateParameter(new TestCommand(), "Name", new byte[3]).Size);
         }
+
+
+        [Fact]
+        public void Does_indexed_column_SQL_Server_binary_mapping()
+        {
+            var entityType = CreateEntityType();
+            var property = entityType.AddProperty("MyProp", typeof(byte[]));
+            entityType.AddIndex(property);
+
+            var typeMapping = new SqlServerTypeMapper().GetMapping(property);
+
+            Assert.Equal(DbType.Binary, typeMapping.StoreType);
+            Assert.Equal("varbinary(900)", typeMapping.DefaultTypeName);
+            Assert.Equal(8000, typeMapping.CreateParameter(new TestCommand(), "Name", "Value").Size);
+        }
+
 
         [Fact]
         public void Does_non_key_SQL_Server_rowversion_mapping()

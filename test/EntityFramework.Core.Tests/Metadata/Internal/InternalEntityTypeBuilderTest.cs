@@ -119,9 +119,9 @@ namespace Microsoft.Data.Entity.Metadata.Internal
                 CoreStrings.NoClrProperty("ShadowCustomerId", typeof(Order)),
                 Assert.Throws<InvalidOperationException>(
                     () => orderEntityBuilder.HasForeignKey(
-                            customerEntityBuilder.Metadata.Name,
-                            new[] { "ShadowCustomerId" },
-                            ConfigurationSource.Convention)).Message);
+                        customerEntityBuilder.Metadata.Name,
+                        new[] { "ShadowCustomerId" },
+                        ConfigurationSource.Convention)).Message);
         }
 
         [Fact]
@@ -137,9 +137,9 @@ namespace Microsoft.Data.Entity.Metadata.Internal
                 CoreStrings.NoClrProperty("ShadowCustomerId", typeof(Order)),
                 Assert.Throws<InvalidOperationException>(
                     () => orderEntityBuilder.HasForeignKey(
-                            customerEntityBuilder.Metadata.Name,
-                            new[] { "ShadowCustomerId", "ShadowCustomerUnique" },
-                            ConfigurationSource.Convention)).Message);
+                        customerEntityBuilder.Metadata.Name,
+                        new[] { "ShadowCustomerId", "ShadowCustomerUnique" },
+                        ConfigurationSource.Convention)).Message);
         }
 
         [Fact]
@@ -155,9 +155,9 @@ namespace Microsoft.Data.Entity.Metadata.Internal
                 CoreStrings.NoClrProperty("ShadowCustomerId", typeof(Order)),
                 Assert.Throws<InvalidOperationException>(
                     () => orderEntityBuilder.HasForeignKey(
-                            customerEntityBuilder.Metadata.Name,
-                            new[] { "ShadowCustomerId" },
-                            ConfigurationSource.Convention)).Message);
+                        customerEntityBuilder.Metadata.Name,
+                        new[] { "ShadowCustomerId" },
+                        ConfigurationSource.Convention)).Message);
         }
 
         [Fact]
@@ -367,7 +367,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
                 principalEntityBuilder,
                 new[]
                 {
-                    dependentEntityBuilder.Property(Order.CustomerIdProperty, ConfigurationSource.Convention).Metadata,
+                    dependentEntityBuilder.Property(Order.CustomerIdProperty, ConfigurationSource.Convention).Metadata
                 },
                 ConfigurationSource.Convention);
             Assert.NotNull(relationshipBuilder);
@@ -389,7 +389,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
                 principalEntityBuilder,
                 new[]
                 {
-                    dependentEntityBuilder.Property(Order.CustomerIdProperty, ConfigurationSource.Convention).Metadata,
+                    dependentEntityBuilder.Property(Order.CustomerIdProperty, ConfigurationSource.Convention).Metadata
                 },
                 ConfigurationSource.Convention);
             Assert.NotNull(relationshipBuilder);
@@ -676,6 +676,29 @@ namespace Microsoft.Data.Entity.Metadata.Internal
         }
 
         [Fact]
+        public void Key_sets_properties_to_required()
+        {
+            var modelBuilder = CreateModelBuilder();
+            var entityBuilder = modelBuilder.Entity(typeof(Order), ConfigurationSource.Explicit);
+
+            entityBuilder.Property(Order.CustomerUniqueProperty, ConfigurationSource.Convention).IsRequired(false, ConfigurationSource.DataAnnotation);
+
+            Assert.Null(entityBuilder.PrimaryKey(new[] { Order.IdProperty, Order.CustomerUniqueProperty }, ConfigurationSource.Convention));
+
+            Assert.NotNull(entityBuilder.PrimaryKey(new[] { Order.IdProperty, Order.CustomerUniqueProperty }, ConfigurationSource.DataAnnotation));
+
+            Assert.False(entityBuilder.Metadata.FindProperty(Order.CustomerUniqueProperty).IsNullable);
+
+            Assert.False(entityBuilder.Property(Order.CustomerUniqueProperty, ConfigurationSource.Convention)
+                .IsRequired(false, ConfigurationSource.Convention));
+            Assert.True(entityBuilder.Property(Order.CustomerUniqueProperty, ConfigurationSource.Convention)
+                .IsRequired(false, ConfigurationSource.DataAnnotation));
+
+            Assert.True(entityBuilder.Metadata.FindProperty(Order.CustomerUniqueProperty).IsNullable);
+            Assert.Null(entityBuilder.Metadata.FindPrimaryKey());
+        }
+
+        [Fact]
         public void Key_throws_for_property_names_if_they_do_not_exist()
         {
             var modelBuilder = CreateModelBuilder();
@@ -699,6 +722,31 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             Assert.Equal(CoreStrings.DerivedEntityTypeKey(typeof(SpecialOrder).Name, typeof(Order).Name),
                 Assert.Throws<InvalidOperationException>(() =>
                     derivedEntityBuilder.HasKey(new[] { Order.IdProperty.Name, Order.CustomerIdProperty.Name }, ConfigurationSource.DataAnnotation)).Message);
+        }
+
+        [Fact]
+        public void Key_throws_if_conflicting_with_derived_foreign_key()
+        {
+            var modelBuilder = CreateModelBuilder();
+            var principalEntityBuilder = modelBuilder.Entity(typeof(Customer), ConfigurationSource.Explicit);
+            principalEntityBuilder.PrimaryKey(new[] { Customer.IdProperty }, ConfigurationSource.Explicit);
+            var dependentEntityBuilder = modelBuilder.Entity(typeof(Order), ConfigurationSource.Explicit);
+            var derivedDependentEntityBuilder = modelBuilder.Entity(typeof(SpecialOrder), ConfigurationSource.Convention);
+            derivedDependentEntityBuilder.HasBaseType(dependentEntityBuilder.Metadata, ConfigurationSource.Explicit);
+            var idProperty = dependentEntityBuilder.Property(Order.IdProperty, ConfigurationSource.Convention).Metadata;
+
+            var relationship = derivedDependentEntityBuilder.Relationship(
+                principalEntityBuilder,
+                Order.CustomerProperty.Name,
+                nameof(Customer.SpecialOrders),
+                ConfigurationSource.Explicit)
+                .HasForeignKey(new[] { idProperty }, ConfigurationSource.Convention);
+
+            Assert.Null(dependentEntityBuilder.HasKey(new[] { Order.IdProperty }, ConfigurationSource.DataAnnotation));
+
+            Assert.Equal(
+                CoreStrings.KeyPropertyInForeignKey(Order.IdProperty.Name, typeof(Order).Name),
+                Assert.Throws<InvalidOperationException>(() => dependentEntityBuilder.HasKey(new[] { Order.IdProperty }, ConfigurationSource.Explicit)).Message);
         }
 
         [Fact]
@@ -1528,7 +1576,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             Assert.Equal(nameof(Customer.SpecialCustomer), baseNavigation.Name);
             Assert.Equal(nameof(SpecialCustomer.Customer), baseNavigation.FindInverse()?.Name);
         }
-        
+
         [Fact]
         public void Relationship_does_not_return_same_instance_if_no_navigations()
         {
@@ -1941,6 +1989,37 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             Assert.Equal(Order.CustomerProperty.Name, fk.DependentToPrincipal.Name);
             Assert.Equal(Customer.SpecialOrdersProperty.Name, fk.PrincipalToDependent.Name);
             Assert.Equal(Order.IdProperty.Name, fk.Properties.Single().Name);
+        }
+
+        [Fact]
+        public void Setting_base_type_fixes_relationship_conflicting_with_PK()
+        {
+            var modelBuilder = CreateModelBuilder();
+            var principalEntityBuilder = modelBuilder.Entity(typeof(Customer), ConfigurationSource.Explicit);
+            principalEntityBuilder.PrimaryKey(new[] { Customer.IdProperty }, ConfigurationSource.Explicit);
+            var dependentEntityBuilder = modelBuilder.Entity(typeof(Order), ConfigurationSource.Explicit);
+            dependentEntityBuilder.PrimaryKey(new[] { Order.IdProperty }, ConfigurationSource.Explicit);
+            var derivedDependentEntityBuilder = modelBuilder.Entity(typeof(SpecialOrder), ConfigurationSource.Convention);
+            derivedDependentEntityBuilder.PrimaryKey(new[] { Order.IdProperty }, ConfigurationSource.Convention);
+            var derivedIdProperty = derivedDependentEntityBuilder.Property(Order.IdProperty, ConfigurationSource.Convention).Metadata;
+
+            derivedDependentEntityBuilder.Relationship(
+                principalEntityBuilder,
+                Order.CustomerProperty.Name,
+                Customer.SpecialOrdersProperty.Name,
+                ConfigurationSource.Explicit)
+                .HasForeignKey(new[] { derivedIdProperty }, ConfigurationSource.Explicit);
+
+            Assert.Null(derivedDependentEntityBuilder.HasBaseType(dependentEntityBuilder.Metadata, ConfigurationSource.DataAnnotation));
+
+            Assert.Same(derivedDependentEntityBuilder,
+                derivedDependentEntityBuilder.HasBaseType(dependentEntityBuilder.Metadata, ConfigurationSource.Explicit));
+            Assert.Equal(0, dependentEntityBuilder.Metadata.GetForeignKeys().Count());
+            var fk = derivedDependentEntityBuilder.Metadata.GetForeignKeys().Single();
+            Assert.Equal(Order.CustomerProperty.Name, fk.DependentToPrincipal.Name);
+            Assert.Equal(Customer.SpecialOrdersProperty.Name, fk.PrincipalToDependent.Name);
+            Assert.NotEqual(Order.IdProperty.Name, fk.Properties.Single().Name);
+            Assert.Equal(1, dependentEntityBuilder.Metadata.GetDeclaredProperties().Count());
         }
 
         private InternalModelBuilder CreateModelBuilder() => new InternalModelBuilder(new Model());

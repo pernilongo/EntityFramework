@@ -22,8 +22,6 @@ namespace Microsoft.Data.Entity.Metadata.Internal
         IPropertyCountsAccessor,
         ISnapshotFactorySource
     {
-        private static readonly char[] _simpleNameChars = { '.', '+' };
-
         private readonly SortedDictionary<IReadOnlyList<IProperty>, ForeignKey> _foreignKeys
             = new SortedDictionary<IReadOnlyList<IProperty>, ForeignKey>(PropertyListComparer.Instance);
 
@@ -306,6 +304,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal
                 foreach (var property in _primaryKey.Properties)
                 {
                     _properties.Remove(property.Name);
+                    property.PrimaryKey = null;
                 }
 
                 _primaryKey = null;
@@ -324,13 +323,13 @@ namespace Microsoft.Data.Entity.Metadata.Internal
                 foreach (var property in key.Properties)
                 {
                     _properties.Remove(property.Name);
+                    property.PrimaryKey = key;
                 }
 
                 _primaryKey = key;
 
                 foreach (var property in key.Properties)
                 {
-                    property.IsNullable = false;
                     _properties.Add(property.Name, property);
                 }
             }
@@ -402,6 +401,16 @@ namespace Microsoft.Data.Entity.Metadata.Internal
                 {
                     throw new ArgumentException(CoreStrings.KeyPropertiesWrongEntity(Property.Format(properties), this.DisplayName()));
                 }
+
+                if (property.FindContainingForeignKeys().Any(k => k.DeclaringEntityType != this))
+                {
+                    throw new InvalidOperationException(CoreStrings.KeyPropertyInForeignKey(property.Name, this.DisplayName()));
+                }
+
+                if (property.IsNullable)
+                {
+                    throw new InvalidOperationException(CoreStrings.NullableKey(this.DisplayName(), property.Name));
+                }
             }
 
             var key = FindKey(properties);
@@ -412,6 +421,21 @@ namespace Microsoft.Data.Entity.Metadata.Internal
 
             key = new Key(properties, configurationSource);
             _keys.Add(properties, key);
+
+            foreach (var property in properties)
+            {
+                var currentKeys = property.Keys;
+                if (currentKeys == null)
+                {
+                    property.Keys = new IKey[] { key };
+                }
+                else
+                {
+                    var newKeys = currentKeys.ToList();
+                    newKeys.Add(key);
+                    property.Keys = newKeys;
+                }
+            }
 
             PropertyMetadataChanged();
 
@@ -447,17 +471,17 @@ namespace Microsoft.Data.Entity.Metadata.Internal
                 : null;
         }
 
-        public virtual Key RemoveKey([NotNull] IReadOnlyList<IProperty> properties)
+        public virtual Key RemoveKey([NotNull] IReadOnlyList<IProperty> properties, bool runConventions = true)
         {
             Check.NotEmpty(properties, nameof(properties));
 
             var key = FindDeclaredKey(properties);
             return key == null
                 ? null
-                : RemoveKey(key);
+                : RemoveKey(key, runConventions);
         }
 
-        private Key RemoveKey([NotNull] Key key)
+        private Key RemoveKey([NotNull] Key key, bool runConventions)
         {
             CheckKeyNotInUse(key);
 
@@ -470,8 +494,21 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             _keys.Remove(key.Properties);
             key.Builder = null;
 
+            foreach (var property in key.Properties)
+            {
+                property.Keys =
+                    property.Keys != null
+                    && property.Keys.Count > 1
+                        ? property.Keys.Where(k => k != key).ToList()
+                        : null;
+            }
+
             PropertyMetadataChanged();
 
+            if (runConventions)
+            {
+                Model.ConventionDispatcher.OnKeyRemoved(Builder, key);
+            }
             return key;
         }
 
@@ -515,7 +552,12 @@ namespace Microsoft.Data.Entity.Metadata.Internal
                 if ((actualProperty == null)
                     || (actualProperty.DeclaringEntityType != property.DeclaringEntityType))
                 {
-                    throw new ArgumentException(CoreStrings.ForeignKeyPropertiesWrongEntity(Property.Format(properties), Name));
+                    throw new ArgumentException(CoreStrings.ForeignKeyPropertiesWrongEntity(Property.Format(properties), this.DisplayName()));
+                }
+
+                if (actualProperty.FindContainingKeys().Any(k => k.DeclaringEntityType != this))
+                {
+                    throw new InvalidOperationException(CoreStrings.ForeignKeyPropertyInKey(actualProperty.Name, this.DisplayName()));
                 }
             }
 
@@ -540,6 +582,21 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             }
 
             _foreignKeys.Add(properties, foreignKey);
+
+            foreach (var property in properties)
+            {
+                var currentKeys = property.ForeignKeys;
+                if (currentKeys == null)
+                {
+                    property.ForeignKeys = new IForeignKey[] { foreignKey };
+                }
+                else
+                {
+                    var newKeys = currentKeys.ToList();
+                    newKeys.Add(foreignKey);
+                    property.ForeignKeys = newKeys;
+                }
+            }
 
             PropertyMetadataChanged();
 
@@ -657,6 +714,15 @@ namespace Microsoft.Data.Entity.Metadata.Internal
 
             var removed = _foreignKeys.Remove(foreignKey.Properties);
             foreignKey.Builder = null;
+
+            foreach (var property in foreignKey.Properties)
+            {
+                property.ForeignKeys =
+                    property.ForeignKeys != null
+                    && property.ForeignKeys.Count > 1
+                        ? property.ForeignKeys.Where(k => k != foreignKey).ToList()
+                        : null;
+            }
 
             PropertyMetadataChanged();
 

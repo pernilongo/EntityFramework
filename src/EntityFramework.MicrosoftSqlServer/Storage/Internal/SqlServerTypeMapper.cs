@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Utilities;
 
@@ -148,5 +149,9 @@ namespace Microsoft.Data.Entity.Storage.Internal
                         _varbinarymax, _varbinarymax, _varbinary900, _rowversion)
                     : null;
         }
+
+        // indexes in SQL Server have a max size of 900 bytes
+        protected override bool RequiresKeyMapping(IProperty property)
+            => base.RequiresKeyMapping(property) || property.FindContainingIndexes().Any();
     }
 }

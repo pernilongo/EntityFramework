@@ -121,7 +121,7 @@
     <value>The string argument '{argumentName}' cannot be empty.</value>
   </data>
   <data name="CircularDependency" xml:space="preserve">
-    <value>A circular dependency was detected: {cycle}.</value>
+    <value>Unable to save changes because a circular dependency was detected in the data to be saved: '{cycle}'.</value>
   </data>
   <data name="InvalidEnumValue" xml:space="preserve">
     <value>The value provided for argument '{argumentName}' must be a valid value of enum type '{enumType}'.</value>
@@ -134,9 +134,6 @@
   </data>
   <data name="IdentityConflict" xml:space="preserve">
     <value>The instance of entity type '{entityType}' cannot be tracked because another instance of this type with the same key is already being tracked. For new entities consider using an IIdentityGenerator to generate unique key values.</value>
-  </data>
-  <data name="InvalidPrimaryKey" xml:space="preserve">
-    <value>The instance of entity type '{entityType}' cannot be tracked because it has an invalid (e.g. null or CLR default) primary key. Either set the key explicitly or consider using an IValueGenerator to generate unique key values.</value>
   </data>
   <data name="WrongStateManager" xml:space="preserve">
     <value>Cannot start tracking InternalEntityEntry for entity type '{entityType}' because it was created by a different StateManager instance.</value>
@@ -391,7 +388,7 @@
     <value>The type '{entityType}' cannot have base type '{baseType}' because both types include the properties: {properties}.</value>
   </data>
   <data name="CannotBeNullablePK" xml:space="preserve">
-    <value>The property '{property}' on entity type '{entityType}' cannot be marked as nullable/optional because the property is a part of the primary key. Any property can be marked as non-nullable/required, but only properties of nullable types and which are not part of primary key can be marked as nullable/optional.</value>
+    <value>The property '{property}' on entity type '{entityType}' cannot be marked as nullable/optional because the property is a part of a key. Any property can be marked as non-nullable/required, but only properties of nullable types and which are not part of a key can be marked as nullable/optional.</value>
   </data>
   <data name="ForeignKeyCannotBeOptional" xml:space="preserve">
     <value>The foreign key {foreignKey} on entity type '{entityType}' cannot be marked as optional because it does not contain any property of a nullable type. Any foreign key can be marked as required, but only foreign keys with at least one property of a nullable type and which is not part of primary key can be marked as optional.</value>
@@ -498,6 +495,9 @@
   <data name="UnhandledNodeType" xml:space="preserve">
     <value>Unhandled node type: {nodeType}</value>
   </data>
+  <data name="InvalidKeyValue" xml:space="preserve">
+    <value>Unable to create or track an entity of type '{entityType}' because it has an null primary or alternate key value.</value>
+  </data>
   <data name="SensitiveDataLoggingEnabled" xml:space="preserve">
     <value>Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data, this mode should only be enabled during development.</value>
   </data>
@@ -515,5 +515,17 @@
   </data>
   <data name="PrincipalEntityTypeNotInRelationship" xml:space="preserve">
     <value>You are configuring a relationship between '{dependentEntityType}' and '{principalEntityType}' but have specified a foreign key targetting '{entityType}'. The foreign key must be targetting a type that is part of the relationship.</value>
+  </data>
+  <data name="ForeignKeyPropertyInKey" xml:space="preserve">
+    <value>The property '{property}' cannot be part of a foreign key on '{entityType}' because it is contained in a key defined on a base entity type.</value>
+  </data>
+  <data name="KeyPropertyInForeignKey" xml:space="preserve">
+    <value>The property '{property}' cannot be part of a key on '{entityType}' because it is contained in a foreign key defined on a derived entity type.</value>
+  </data>
+  <data name="NullableKey" xml:space="preserve">
+    <value>A key on entity type '{entityType}' cannot contain the property '{property}' because it is nullable/optional. All properties on which a key is declared must be marked as non-nullable/required.</value>
+  </data>
+  <data name="ConcurrentMethodInvocation" xml:space="preserve">
+    <value>A second operation started on this context before a previous operation completed. Any instance members are not guaranteed to be thread safe.</value>
   </data>
 </root>
