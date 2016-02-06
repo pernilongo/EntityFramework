@@ -1,0 +1,47 @@
+{
+  "version": "1.0.0-*",
+  "description": "Reusable Microsoft.EntityFrameworkCore.Relational.Design functional tests for provider writers.",
+  "compilationOptions": {
+    "keyFile": "../../tools/Key.snk"
+  },
+  "dependencies": {
+    "Microsoft.EntityFrameworkCore.Commands": "1.0.0-*",
+    "Microsoft.EntityFrameworkCore.Relational.Design": "1.0.0-*",
+    "Microsoft.EntityFrameworkCore.Relational.FunctionalTests": "1.0.0-*",
+    "Microsoft.Dnx.Compilation.CSharp.Abstractions": "1.0.0-*"
+  },
+  "frameworks": {
+    "net451": {
+      "frameworkAssemblies": {
+        "System.Diagnostics.Tracing": "",
+        "System.IO": "",
+        "System.Reflection.Primitives": "",
+        "System.Resources.ResourceManager": "",
+        "System.Runtime.InteropServices": "",
+        "System.Text.Encoding": "",
+        "System.Text.Encoding.Extensions": ""
+      }
+    },
+    "dnx451": {
+      "frameworkAssemblies": {
+        "System.Diagnostics.Tracing": "",
+        "System.IO": "",
+        "System.Reflection.Primitives": "",
+        "System.Resources.ResourceManager": "",
+        "System.Runtime.InteropServices": "",
+        "System.Text.Encoding": "",
+        "System.Text.Encoding.Extensions": ""
+      },
+      "dependencies": {
+        "Microsoft.Dnx.Runtime": "1.0.0-*"
+      }
+    },
+    "dnxcore50": {
+      "imports": "portable-net452+win81",
+      "dependencies": {
+        "Microsoft.Dnx.Runtime": "1.0.0-*",
+        "Microsoft.NETCore.Platforms": "1.0.1-*"
+      }
+    }
+  }
+}

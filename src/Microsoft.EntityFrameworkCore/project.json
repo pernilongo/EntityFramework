@@ -1,0 +1,57 @@
+{
+  "version": "1.0.0-*",
+  "description": "Entity Framework is Microsoft's recommended data access technology for new applications.",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/aspnet/entityframework"
+  },
+  "compilationOptions": {
+    "warningsAsErrors": true,
+    "keyFile": "../../tools/Key.snk"
+  },
+  "dependencies": {
+    "Ix-Async": "1.2.5",
+    "Microsoft.Extensions.Caching.Memory": "1.0.0-*",
+    "Microsoft.Extensions.DependencyInjection": "1.0.0-*",
+    "Microsoft.Extensions.Logging": "1.0.0-*",
+    "Remotion.Linq": "2.0.1"
+  },
+  "compile": "..\\Shared\\*.cs",
+  "namedResource": {
+    "Microsoft.EntityFrameworkCore.CoreStrings": "Properties/CoreStrings.resx"
+  },
+  "resource": [
+    "Properties/Microsoft.EntityFrameworkCore.rd.xml"
+  ],
+  "frameworks": {
+    "net451": {
+      "frameworkAssemblies": {
+        "System.Collections": "",
+        "System.ComponentModel.DataAnnotations": "",
+        "System.Diagnostics.Debug": "",
+        "System.Linq": "",
+        "System.Linq.Expressions": "",
+        "System.Linq.Queryable": "",
+        "System.ObjectModel": "",
+        "System.Reflection": "",
+        "System.Reflection.Extensions": "",
+        "System.Runtime": "",
+        "System.Runtime.Extensions": "",
+        "System.Threading": ""
+      }
+    },
+    "dotnet5.4": {
+      "imports": "portable-net452+win81",
+      "dependencies": {
+        "System.Collections.Concurrent": "4.0.11-*",
+        "System.ComponentModel.Annotations": "4.1.0-*",
+        "System.Linq.Queryable": "4.0.1-*",
+        "System.ObjectModel": "4.0.11-*",
+        "System.Reflection.TypeExtensions": "4.1.0-*"
+      }
+    }
+  },
+  "packInclude": {
+    "build/": "build/**"
+  }
+}

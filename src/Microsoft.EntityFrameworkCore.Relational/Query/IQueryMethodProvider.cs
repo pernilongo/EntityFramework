@@ -1,0 +1,22 @@
+// Copyright (c) .NET Foundation. All rights reserved.
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+
+using System;
+using System.Reflection;
+
+namespace Microsoft.EntityFrameworkCore.Query
+{
+    public interface IQueryMethodProvider
+    {
+        MethodInfo GroupJoinMethod { get; }
+        MethodInfo GroupByMethod { get; }
+        MethodInfo ShapedQueryMethod { get; }
+        MethodInfo DefaultIfEmptyShapedQueryMethod { get; }
+        MethodInfo QueryMethod { get; }
+        MethodInfo GetResultMethod { get; }
+        MethodInfo IncludeMethod { get; }
+        MethodInfo CreateReferenceIncludeRelatedValuesStrategyMethod { get; }
+        MethodInfo CreateCollectionIncludeRelatedValuesStrategyMethod { get; }
+        Type IncludeRelatedValuesFactoryType { get; }
+    }
+}
